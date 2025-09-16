@@ -22,6 +22,22 @@ export default function Login({ status, canResetPassword, firstLogin }) {
         setShowPassword(!showPassword);
     };
 
+    const translateError = (message) => {
+        if (!message || typeof message !== 'string') return message;
+        const dictionary = {
+            'The email field is required.': "Le champ e-mail est obligatoire.",
+            'The email field must be a valid email address.': "L’e-mail doit être une adresse valide.",
+            'The password field is required.': 'Le champ mot de passe est obligatoire.',
+            'These credentials do not match our records.': 'Le login ou le mot de passe est incorrect.',
+            'Too many login attempts. Please try again later.': 'Trop de tentatives de connexion. Réessayez plus tard.',
+        };
+        if (dictionary[message]) return dictionary[message];
+        return message
+            .replace(/^The\s+/i, '')
+            .replace(/\s+field is required\.$/i, ' est obligatoire.')
+            .replace(/must be a valid email address\.$/i, 'doit être une adresse e-mail valide.');
+    };
+
     const submit = (e) => {
         e.preventDefault();
 
@@ -42,7 +58,7 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                     <div className="text-center mb-8">
                         <div className="flex items-center justify-center mb-6">
                             <i className="fas fa-heartbeat text-4xl mr-3 animate-pulse-slow"></i>
-                            <h1 className="text-3xl font-bold">Cofi'Pharma</h1>
+                            <h1 className="text-3xl font-bold">Cofi'Express</h1>
                         </div>
                         <p className="text-xl mb-2">La plate-forme idéale</p>
                         <p className="opacity-90"></p>
@@ -55,18 +71,28 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                         </div>
                     </div>
 
-                    <div className="mt-12 text-center">
+                    {/* <div className="mt-12 text-center">
                         <p className="text-sm opacity-80">Pas encore inscrit ?</p>
                         <button id="showRegister" className="mt-2 px-6 py-2 text-red-600 bg-white text-alldoc rounded-full font-medium hover:bg-gray-100 transition duration-300">
                             Créer un compte
                         </button>
-                    </div>
+                    </div> */}
                 </div>
                 <div className="bg-white p-8 md:w-1/2 flex flex-col justify-center">
                     <form onSubmit={submit}>
                     <div id="loginForm">
                         <h2 className="text-3xl font-bold text-gray-800 mb-2">Connectez-vous</h2>
                         <p className="text-gray-600 mb-8">Accédez à votre espace personnel</p>
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="mb-4">
+                                <ul className="list-disc list-inside text-sm text-red-600">
+                                    {Object.values(errors).map((error, idx) => (
+                                        <li key={idx}>{translateError(error)}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
 
                         <div className="space-y-4">
                             <div>
@@ -78,8 +104,10 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                                     </div>
                                     <input type="email" id="email" className="pl-10 w-full px-1 py-3 rounded-lg border border-gray-300 focus:border-alldoc input-focus transition duration-300" placeholder="votre@email.com"
                                     onChange={(e) => setData('email', e.target.value)}
+                                    value={data.email}
                                     />
                                 </div>
+                                <InputError message={translateError(errors.email)} className="mt-2" />
                             </div>
 
                             <div>
@@ -95,6 +123,7 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                                         className="pl-10 w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-alldoc input-focus transition duration-300"
                                         placeholder="••••••••"
                                         onChange={(e) => setData('password', e.target.value)}
+                                        value={data.password}
                                     />
                                     <button
                                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
@@ -104,11 +133,15 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                                         {showPassword ? <EyeOff /> : <Eye />}
                                     </button>
                                 </div>
+                                <InputError message={translateError(errors.password)} className="mt-2" />
                             </div>
 
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center">
-                                    <input id="remember" type="checkbox" className="h-4 w-4 text-alldoc focus:ring-alldoc border-gray-300 rounded" />
+                                    <input id="remember" type="checkbox" className="h-4 w-4 text-alldoc focus:ring-alldoc border-gray-300 rounded"
+                                        checked={data.remember}
+                                        onChange={(e) => setData('remember', e.target.checked)}
+                                    />
                                     <label for="remember" className="ml-2 block text-sm text-gray-700">Se souvenir de moi</label>
                                 </div>
                                 <a href="#" className="text-sm text-alldoc hover:underline">Mot de passe oublié ?</a>
