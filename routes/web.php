@@ -22,8 +22,12 @@ Route::get('/', function () {
 
 
 // Routes en rapport avec CofiPharma
-Route::post('/demandes',[DemandeController::class,'store'])->name('demandes.store');
-Route::get('/demandes',[DemandeController::class,'index'])->name('demande.index');
+Route::middleware(['auth'])->group(function () {
+    Route::post('/demandes',[DemandeController::class,'store'])->name('demandes.store');
+    Route::get('/demandes',[DemandeController::class,'index'])->name('demande.index');
+Route::get('/av_salaire',[AvSalaireController::class,'index'])->name('av_salaire');
+
+});
 Route::get('/demandes-all',[DemandeController::class,'all'])->name('demande.all');
 
 
@@ -351,7 +355,6 @@ Route::get('/statistiques/export', [DemandeController::class, 'exportStatistics'
     ->middleware(['auth'])
     ->name('statistiques.export');
 
-Route::get('/av_salaire',[AvSalaireController::class,'index'])->name('av_salaire');
 Route::post('/av_salaire',[AvSalaireController::class,'store'])->name('av_salaire.store');
 
 Route::middleware(['auth','verified','role:responsable_ritel'])->prefix('responsable_ritel')->name('responsable_ritel.')->group(function(){

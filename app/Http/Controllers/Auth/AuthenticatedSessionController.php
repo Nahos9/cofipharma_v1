@@ -49,6 +49,9 @@ class AuthenticatedSessionController extends Controller
                 // dd("ok");
             return redirect()->intended(route('visiteur.dashboard', absolute: false));
         }
+        elseif($user->role == 'client'){
+            return redirect()->intended(route('welcome', absolute: false));
+        }
 
         $request->session()->regenerate();
 

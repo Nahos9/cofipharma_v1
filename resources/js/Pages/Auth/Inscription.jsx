@@ -1,58 +1,92 @@
-import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Eye, EyeOff, Mail, Lock, LoaderPinwheel } from 'lucide-react';
-import { useState } from 'react';
+import { useForm,router } from '@inertiajs/react';
+import { Eye, EyeOff, LoaderPinwheel, Mail, Lock, User } from 'lucide-react';
+import React, { useState } from 'react'
 
-import "./Login.css"
-export default function Login({ status, canResetPassword, firstLogin }) {
+const Inscription = () => {
     const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
         email: '',
         password: '',
-        remember: false,
+        password_confirmation: '',
+        role:''
     });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        post(route('storeClient'));
+        reset();
+        toast.success('Inscription réussie');
+        router.visit(route('login'));
+
+    };
+    const roles = [
+        {
+            id: 1,
+            name: 'client'
+        }
+    ];
 
     const [showPassword, setShowPassword] = useState(false);
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
-
     const translateError = (message) => {
+        // Gérer les tableaux d'erreurs (Laravel peut renvoyer un tableau par champ)
+        if (Array.isArray(message)) {
+            return message.map(translateError)[0];
+        }
         if (!message || typeof message !== 'string') return message;
-        const dictionary = {
-            'The email field is required.': "Le champ e-mail est obligatoire.",
+
+        const exact = {
+            'The email field is required.': 'Le champ e-mail est obligatoire.',
             'The email field must be a valid email address.': "L’e-mail doit être une adresse valide.",
             'The password field is required.': 'Le champ mot de passe est obligatoire.',
-            'These credentials do not match our records.': 'Le login ou le mot de passe est incorrect.',
-            'Too many login attempts. Please try again later.': 'Trop de tentatives de connexion. Réessayez plus tard.',
+            'The password field confirmation does not match.': 'La confirmation du mot de passe ne correspond pas.',
+            'The password confirmation does not match.': 'La confirmation du mot de passe ne correspond pas.',
+            'These credentials do not match our records.': 'Identifiants invalides.',
+            'Too many login attempts. Please try again later.': 'Trop de tentatives. Réessayez plus tard.',
+            'The name field is required.': 'Le nom est obligatoire.',
+            'The role field is required.': 'Le rôle est obligatoire.',
         };
-        if (dictionary[message]) return dictionary[message];
-        return message
-            .replace(/^The\s+/i, '')
-            .replace(/\s+field is required\.$/i, ' est obligatoire.')
-            .replace(/must be a valid email address\.$/i, 'doit être une adresse e-mail valide.');
+        if (exact[message]) return exact[message];
+
+        // Règles génériques courantes Laravel
+        let translated = message;
+        // required
+        translated = translated.replace(/^The\s+(.*?)\s+field is required\.$/i, (_, f) => `${toFrenchField(f)} est obligatoire.`);
+        // email
+        translated = translated.replace(/^The\s+(.*?)\s+field must be a valid email address\.$/i, (_, f) => `${toFrenchField(f)} doit être une adresse e-mail valide.`);
+        // unique
+        translated = translated.replace(/^The\s+(.*?)\s+has already been taken\.$/i, (_, f) => `${toFrenchField(f)} est déjà pris.`);
+        // min characters
+        translated = translated.replace(/^The\s+(.*?)\s+field must be at least\s+(\d+)\s+characters\.$/i, (_, f, n) => `${toFrenchField(f)} doit contenir au moins ${n} caractères.`);
+        // max characters
+        translated = translated.replace(/^The\s+(.*?)\s+field must not be greater than\s+(\d+)\s+characters\.$/i, (_, f, n) => `${toFrenchField(f)} ne doit pas dépasser ${n} caractères.`);
+        // confirmed
+        translated = translated.replace(/^The\s+(.*?)\s+field confirmation does not match\.$/i, (_, f) => `La confirmation de ${toFrenchField(f)} ne correspond pas.`);
+        // string
+        translated = translated.replace(/^The\s+(.*?)\s+field must be a string\.$/i, (_, f) => `${toFrenchField(f)} doit être une chaîne de caractères.`);
+        // numeric
+        translated = translated.replace(/^The\s+(.*?)\s+field must be a number\.$/i, (_, f) => `${toFrenchField(f)} doit être un nombre.`);
+
+        return translated;
     };
 
-    const submit = (e) => {
-        e.preventDefault();
-
-        post(route('login'), {
-            onSuccess: () => {
-                if (firstLogin) {
-                    window.location.href = route('password.change');
-                }
-            },
-            onFinish: () => reset('password'),
-        });
+    const toFrenchField = (field) => {
+        const map = {
+            email: 'l’e-mail',
+            password: 'le mot de passe',
+            'password confirmation': 'la confirmation du mot de passe',
+            name: 'le nom',
+            role: 'le rôle',
+        };
+        const key = String(field || '').toLowerCase();
+        return map[key] || `le champ ${field}`;
     };
-
-    return (
-        <div className="h-screen  flex items-center justify-center">
+  return (
+    <div className="h-screen  flex items-center justify-center">
             <div className="flex flex-col md:flex-row rounded-2xl overflow-hidden shadow-2xl">
                 <div className="bg-red-600 text-white p-8 md:w-1/2 flex flex-col items-center justify-center">
                     <div className="text-center mb-8">
@@ -79,9 +113,9 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                     </div> */}
                 </div>
                 <div className="bg-white p-8 md:w-1/2 flex flex-col justify-center">
-                    <form onSubmit={submit}>
+                    <form onSubmit={handleSubmit}>
                     <div id="loginForm">
-                        <h2 className="text-3xl font-bold text-gray-800 mb-2">Connectez-vous</h2>
+                        <h2 className="text-3xl font-bold text-gray-800 mb-2">Inscrivez-vous</h2>
                         <p className="text-gray-600 mb-8">Accédez à votre espace personnel</p>
 
                         {Object.keys(errors).length > 0 && (
@@ -95,8 +129,22 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                         )}
 
                         <div className="space-y-4">
+                        <div>
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Votre nom</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0  left-0 pl-3 flex items-center pointer-events-none">
+                                        {/* <i className="fas fa-envelope text-gray-400"></i> */}
+                                        <User className='text-gray-400' />
+                                    </div>
+                                    <input type="string" id="name" className="pl-10 w-full px-1 py-3 rounded-lg border border-gray-300 focus:border-alldoc input-focus transition duration-300" placeholder="jhon doe"
+                                    onChange={(e) => setData('name', e.target.value)}
+                                        value={data.name}
+                                    />
+                                </div>
+                                <InputError message={translateError(errors.name)} className="mt-2" />
+                            </div>
                             <div>
-                                <label for="email" className="block text-sm font-medium text-gray-700 mb-1">Adresse email</label>
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Adresse email</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0  left-0 pl-3 flex items-center pointer-events-none">
                                         {/* <i className="fas fa-envelope text-gray-400"></i> */}
@@ -111,7 +159,7 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                             </div>
 
                             <div>
-                                <label for="password" className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         {/* <i className="fas fa-lock text-gray-400"></i> */}
@@ -135,26 +183,51 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                                 </div>
                                 <InputError message={translateError(errors.password)} className="mt-2" />
                             </div>
+                            <div>
+                                <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        {/* <i className="fas fa-lock text-gray-400"></i> */}
+                                        <Lock className='text-gray-400' />
+                                    </div>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        id="password_confirmation"
+                                        className="pl-10 w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-alldoc input-focus transition duration-300"
+                                        placeholder="••••••••"
+                                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                                        value={data.password_confirmation}
+                                    />
+                                    <button
+                                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                                        type="button"
+                                        onClick={togglePasswordVisibility}
+                                    >
+                                        {showPassword ? <EyeOff /> : <Eye />}
+                                    </button>
+                                </div>
+                                <InputError message={translateError(errors.password_confirmation)} className="mt-2" />
+                            </div>
 
-                            <div className="flex items-center justify-between">
+
+                            {/* <div className="flex items-center justify-between">
                                 <div className="flex items-center">
                                     <input id="remember" type="checkbox" className="h-4 w-4 text-alldoc focus:ring-alldoc border-gray-300 rounded"
                                         checked={data.remember}
                                         onChange={(e) => setData('remember', e.target.checked)}
                                     />
-                                    <label for="remember" className="ml-2 block text-sm text-gray-700">Se souvenir de moi</label>
+                                    <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">Se souvenir de moi</label>
                                 </div>
                                 <a href="#" className="text-sm text-alldoc hover:underline">Mot de passe oublié ?</a>
-                            </div>
+                            </div> */}
 
                             <button type="submit" id="loginBtn" className="w-full bg-alldoc bg-red-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-700 transition duration-300 flex items-center justify-center">
-                                <span id="loginText">Se connecter</span>
+                                <span id="loginText">S'inscrire</span>
                                 <span id="loginSpinner" className="hidden ml-2">
                                     {/* <i className="fas fa-spinner fa-spin"></i> */}
                                     <LoaderPinwheel />
                                 </span>
                             </button>
-                            <p>Si vous n'avez pas de compte, <Link href={route('inscription')} className="text-alldoc hover:underline">s'inscrire</Link></p>
 
                             {/* <div className="relative my-6">
                                 <div className="absolute inset-0 flex items-center">
@@ -250,5 +323,7 @@ export default function Login({ status, canResetPassword, firstLogin }) {
                 </div>
             </div>
         </div>
-    );
+  )
 }
+
+export default Inscription
