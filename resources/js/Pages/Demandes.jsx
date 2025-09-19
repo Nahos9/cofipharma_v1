@@ -171,16 +171,29 @@ const Demande = () => {
                     </div>
                     <div className="mb-4">
                         <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="numero_compte">
-                            Numéro de compte (*)
+                            Numéro de compte courant (*)
                         </label>
                         <input
-                            className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.numero_compte ? 'border-red-500' : ''}`}
-                            id="numero_compte"
-                            type="text"
-                            placeholder="Votre numéro de compte"
-                            onChange={(e)=>{setData(prev => ({...prev, numero_compte:e.target.value}))}}
-                            value={data.numero_compte}
-                            required
+                           className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.numero_compte ? 'border-red-500' : ''}`}
+                           id="numero_compte"
+                           type="text"
+                           inputMode="numeric"
+                           placeholder="Votre numéro de compte"
+                           pattern="^371.*"
+                           onInvalid={(e)=> e.currentTarget.setCustomValidity('Le numéro de compte doit commencer par 371')}
+                           onInput={(e)=> e.currentTarget.setCustomValidity('')}
+                           onChange={(e)=>{
+                               const value = e.target.value;
+                               // Validation immédiate côté client
+                               if (value && !value.startsWith('371')) {
+                                   e.target.setCustomValidity('Le numéro de compte doit commencer par 371');
+                               } else {
+                                   e.target.setCustomValidity('');
+                               }
+                               setData(prev => ({...prev, numero_compte: value}))
+                           }}
+                           value={data.numero_compte}
+                           required
                         />
                         {errors.numero_compte && (
                             <p className="text-red-500 text-xs italic mt-1">{errors.numero_compte}</p>

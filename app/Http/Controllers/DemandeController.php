@@ -81,6 +81,7 @@ class DemandeController extends Controller
             'last_name.max' => 'Le nom ne doit pas dépasser 255 caractères',
             'numero_compte.required' => 'Le numéro de compte est obligatoire',
             'numero_compte.string' => 'Le numéro de compte doit être une chaîne de caractères',
+            'numero_compte.regex' => 'Le numéro de compte doit commencer par 371 et contenir uniquement des chiffres',
             'numero_compte.max' => 'Le numéro de compte ne doit pas dépasser 50 caractères',
             'email.required' => 'L\'email est obligatoire',
             'email.email' => 'L\'email doit être une adresse email valide',
@@ -98,7 +99,7 @@ class DemandeController extends Controller
         $request->validate([
             'first_name' => 'required|string|max:255',
             // 'last_name' => 'required|string|max:255',
-            'numero_compte' => 'required|string|max:50',
+            'numero_compte' => ['required', 'string', 'regex:/^371[0-9]+$/', 'max:50'],
             'email' => 'required|email|max:255',
             'montant' => 'required|numeric',
             'phone' => 'required|string|max:20',

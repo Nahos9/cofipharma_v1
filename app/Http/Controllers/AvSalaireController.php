@@ -32,7 +32,7 @@ class AvSalaireController extends Controller
             'prenom' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => 'required|string|max:20',
-            'numero_compte' => 'required|string|max:50',
+            'numero_compte' => 'required|string|regex:/^371[0-9]+$/|max:50',
             'montant' => 'required|numeric|min:1',
             'fichiers' => 'nullable|array',
             'fichiers.*' => 'file|max:5120', // 5 Mo max par fichier
@@ -55,6 +55,7 @@ class AvSalaireController extends Controller
 
             'numero_compte.required' => 'Le numéro de compte est obligatoire.',
             'numero_compte.string' => 'Le numéro de compte doit être une chaîne de caractères.',
+            'numero_compte.regex' => 'Le numéro de compte doit commencer par 371 et contenir uniquement des chiffres.',
             'numero_compte.max' => 'Le numéro de compte ne peut pas dépasser 50 caractères.',
 
             'montant.required' => 'Le montant est obligatoire.',

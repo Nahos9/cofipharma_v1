@@ -43,22 +43,24 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', Password::defaults()],
-            'roles' => ['required', 'array'],
-            'roles.*' => ['exists:roles,id']
+            'role' => ['required', 'string'],
+
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => $request->role,
         ]);
 
-        $user->roles()->attach($request->roles);
+        // $user->roles()->attach([$request->role]);
+        $users = User::all();
 
-        return response()->json([
-            'message' => 'Utilisateur créé avec succès',
-            'user' => $user->load('roles')
-        ], 201);
+
+        return Inertia::render('Admin/Users/Index', [
+            'users' => $users
+        ]);
     }
 
     /**
@@ -66,7 +68,7 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        return response()->json($user->load('roles'));
+        return response()->json($user);
     }
 
     /**
@@ -76,7 +78,7 @@ class UserController extends Controller
     {
         $roles = Role::all();
         return response()->json([
-            'user' => $user->load('roles'),
+            'user' => $user,
             'roles' => $roles
         ]);
     }
@@ -89,13 +91,15 @@ class UserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
-            'roles' => ['required', 'array'],
-            'roles.*' => ['exists:roles,id']
+            'role' => ['required', 'string'],
         ]);
+
+        // dd("ok");
 
         $user->update([
             'name' => $request->name,
             'email' => $request->email,
+            'role' => $request->role,
         ]);
 
         if ($request->filled('password')) {
@@ -105,11 +109,10 @@ class UserController extends Controller
             $user->update(['password' => Hash::make($request->password)]);
         }
 
-        $user->roles()->sync($request->roles);
-
-        return response()->json([
-            'message' => 'Utilisateur mis à jour avec succès',
-            'user' => $user->load('roles')
+        // $user->roles()->sync([$request->role]);
+        $users = User::all();
+        return Inertia::render('Admin/Users/Index', [
+            'users' => $users
         ]);
     }
 

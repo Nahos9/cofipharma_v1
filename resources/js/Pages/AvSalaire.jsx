@@ -126,14 +126,27 @@ const AvSalaire = ({ auth, flash }) => {
                 </div>
                 <div className="flex justify-between gap-2 mt-1">
                    <div className='flex-1'>
-                        <InputLabel htmlFor="numero_compte" value="Numéro de compte" />
+                        <InputLabel htmlFor="numero_compte" value="Numéro de compte courant" />
                         <TextInput
                             id="numero_compte"
                             type="text"
                             name="numero_compte"
                             value={data.numero_compte}
                             className="mt-1 block w-full"
-                            onChange={(e) => setData('numero_compte', e.target.value)}
+                            inputMode="numeric"
+                            pattern="^371.*"
+                            onInvalid={(e)=> e.currentTarget.setCustomValidity('Le numéro de compte doit commencer par 371')}
+                            onInput={(e)=> e.currentTarget.setCustomValidity('')}
+                            onChange={(e)=>{
+                               const value = e.target.value;
+                               // Validation immédiate côté client
+                               if (value && !value.startsWith('371')) {
+                                   e.target.setCustomValidity('Le numéro de compte doit commencer par 371');
+                               } else {
+                                   e.target.setCustomValidity('');
+                               }
+                               setData(prev => ({...prev, numero_compte: value}))
+                           }}
 
                         />
                         <InputError message={errors.numero_compte} className="mt-2" />

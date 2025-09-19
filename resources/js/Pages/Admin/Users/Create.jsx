@@ -7,24 +7,52 @@ import { Label } from "@/Components/ui/label";
 import { Checkbox } from "@/Components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
 
-export default function Create({ auth, roles }) {
+export default function Create({ auth }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         email: '',
         password: '',
-        roles: []
+        role: ''
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route('admin.users.store'));
     };
+    const roles = [
+        {
+            id: 1,
+            name: 'admin'
+        },
+        {
+            id: 2,
+            name: 'charge client'
+        },
+        {
+            id: 3,
+            name: 'responsable_ritel'
+        },
+        {
+            id: 4,
+            name: 'operation'
+        },
+        {
+            id: 5,
+            name: 'chef_agence'
+        },
+        {
+            id: 6,
+            name: 'visiteur'
+        }
 
-    const handleRoleChange = (roleId) => {
-        const newRoles = data.roles.includes(roleId)
-            ? data.roles.filter(id => id !== roleId)
-            : [...data.roles, roleId];
-        setData('roles', newRoles);
+    ]
+
+
+    const errorMessages = {
+        name: 'Le nom est obligatoire.',
+        email: "L'adresse e-mail est invalide ou manquante.",
+        password: 'Le mot de passe est obligatoire (au moins 8 caractères).',
+        role: 'Veuillez choisir un rôle.'
     };
 
     return (
@@ -50,7 +78,7 @@ export default function Create({ auth, roles }) {
                                         value={data.name}
                                         onChange={e => setData('name', e.target.value)}
                                     />
-                                    {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                                    {errors.name && <p className="text-red-500 text-sm">{errorMessages.name}</p>}
                                 </div>
 
                                 <div className="space-y-2">
@@ -61,7 +89,7 @@ export default function Create({ auth, roles }) {
                                         value={data.email}
                                         onChange={e => setData('email', e.target.value)}
                                     />
-                                    {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+                                    {errors.email && <p className="text-red-500 text-sm">{errorMessages.email}</p>}
                                 </div>
 
                                 <div className="space-y-2">
@@ -72,24 +100,22 @@ export default function Create({ auth, roles }) {
                                         value={data.password}
                                         onChange={e => setData('password', e.target.value)}
                                     />
-                                    {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+                                    {errors.password && <p className="text-red-500 text-sm">{errorMessages.password}</p>}
                                 </div>
 
                                 <div className="space-y-2">
                                     <Label>Rôles</Label>
                                     <div className="grid grid-cols-2 gap-4">
+                                        <select onChange={e => setData('role', e.target.value)}>
+                                         <option value="" >Choisissez un rôle</option>
                                         {roles.map((role) => (
-                                            <div key={role.id} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`role-${role.id}`}
-                                                    checked={data.roles.includes(role.id)}
-                                                    onCheckedChange={() => handleRoleChange(role.id)}
-                                                />
-                                                <Label htmlFor={`role-${role.id}`}>{role.name}</Label>
-                                            </div>
+                                           <option key={role.id} value={role.name}>
+                                                {role.name}
+                                           </option>
                                         ))}
+                                        </select>
                                     </div>
-                                    {errors.roles && <p className="text-red-500 text-sm">{errors.roles}</p>}
+                                    {errors.role && <p className="text-red-500 text-sm">{errorMessages.role}</p>}
                                 </div>
 
                                 <div className="flex justify-end space-x-4">
