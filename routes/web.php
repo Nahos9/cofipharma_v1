@@ -9,25 +9,31 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Auth\ChangePasswordController;
 use App\Http\Controllers\AvSalaireController;
+use App\Http\Controllers\ForcePasswordChangeController;
 use Illuminate\Http\Request;
 
 
 // Route::get('/dashboard', function () {
 //     return Inertia::render('Dashboard');
 // })->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/force-password-change', [ForcePasswordChangeController::class, 'edit'])->middleware('auth')->name('password.force.change');
+
+Route::post('/force-password-change', [ForcePasswordChangeController::class, 'update'])->middleware('auth')->name('password.force.update');
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('welcome');
 
 
+
 // Routes en rapport avec CofiPharma
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordChanged::class])->group(function () {
     Route::post('/demandes',[DemandeController::class,'store'])->name('demandes.store');
     Route::get('/demandes',[DemandeController::class,'index'])->name('demande.index');
-Route::get('/av_salaire',[AvSalaireController::class,'index'])->name('av_salaire');
-
+    Route::get('/av_salaire',[AvSalaireController::class,'index'])->name('av_salaire');
 });
+
 Route::get('/demandes-all',[DemandeController::class,'all'])->name('demande.all');
 
 
@@ -38,7 +44,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsurePasswordChanged::class])->group(function () {
     // Routes pour les demandes
     // Route::get('/demandes', [DemandeController::class, 'index'])->name('demandes.index');
     Route::get('/demandes/{demande}/edit', [DemandeController::class, 'edit'])->name('demandes.edit');
@@ -48,7 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/demandes/delete-multiple', [DemandeController::class, 'deleteMultiple'])->name('demandes.delete-multiple');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordChanged::class])->group(function () {
     Route::get('/demandes/all', [DemandeController::class, 'all'])->name('demande.all');
     Route::get('/change-password', [ChangePasswordController::class, 'show'])->name('password.change');
     Route::post('/change-password', [ChangePasswordController::class, 'update'])->name('password.change');

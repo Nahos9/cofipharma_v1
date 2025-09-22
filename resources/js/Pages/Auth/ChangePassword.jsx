@@ -15,7 +15,7 @@ export default function ChangePassword() {
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('password.change'), {
+        post(route('password.force.update'), {
             onSuccess: () => {
                 reset();
             },

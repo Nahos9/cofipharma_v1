@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\UserCreateMail;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
@@ -57,6 +59,7 @@ class UserController extends Controller
         // $user->roles()->attach([$request->role]);
         $users = User::all();
 
+        Mail::to($user->email)->send(new UserCreateMail($user, $request->password));
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users
