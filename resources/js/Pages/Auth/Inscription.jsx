@@ -12,11 +12,20 @@ const Inscription = () => {
         role:''
     });
 
+    const toast = useToast();
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route('storeClient'));
         reset();
-        toast.success('Inscription réussie');
+        toast.success('Inscription réussie', {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+        });
         router.visit(route('login'));
 
     };

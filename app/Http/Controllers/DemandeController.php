@@ -11,9 +11,12 @@ use App\Models\PieceJointe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use PhpOffice\PhpWord\TemplateProcessor;
+use PhpOffice\PhpWord\IOFactory;
 
 class DemandeController extends Controller
 {
@@ -103,10 +106,25 @@ class DemandeController extends Controller
             'email' => 'required|email|max:255',
             'montant' => 'required|numeric',
             'phone' => 'required|string|max:20',
-            'files.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:20240' // max 10MB par fichier
+            // Champs additionnels (facultatifs)
+            'civility' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'bp' => 'nullable|string|max:50',
+            'piece_identite' => 'nullable|string|max:100',
+            'numero_piece_identite' => 'nullable|string|max:100',
+            'date_naissance' => 'nullable|date',
+            'date_de_delivrance_piece_identite' => 'nullable|date',
+            'lieu_naissance' => 'nullable|string|max:255',
+            'nationalite' => 'nullable|string|max:100',
+            'profession' => 'nullable|string|max:100',
+            'employeur' => 'nullable|string|max:255',
+            'files.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:20240', // max 10MB par fichier
+            'signature' => 'nullable|file|mimes:png,jpg,jpeg|max:10240'
         ], $messages);
 
         // Création de la demande
+        // dd($request->all());
         $demande = Demande::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
@@ -116,7 +134,21 @@ class DemandeController extends Controller
             'numero_carte'=> $request->carte ?? null,
             'mode_paiement'=>$request->mode_paiement,
             'phone' => $request->phone,
+            'dure' => "1",
             'user_validateur_level' => "charge client",
+            // Champs additionnels
+            'civility' => $request->civility,
+            'address' => $request->address,
+            'city' => $request->city,
+            'bp' => $request->bp,
+            'piece_identite' => $request->piece_identite,
+            'numero_piece_identite' => $request->numero_piece_identite,
+            'date_de_delivrance_piece_identite' => $request->date_de_delivrance_piece_identite,
+            'date_naissance' => $request->date_naissance,
+            'lieu_naissance' => $request->lieu_naissance,
+            'nationalite' => $request->nationalite,
+            'profession' => $request->profession,
+            'employeur' => $request->employeur,
         ]);
 
         // Traitement des fichiers
@@ -136,6 +168,71 @@ class DemandeController extends Controller
             }
         }
 
+        // Upload de la signature si fournie
+        if ($request->hasFile('signature')) {
+            $signature = $request->file('signature');
+            $sigPath = $signature->store('piece_jointes/' . $demande->id, 'public');
+            PieceJointe::create([
+                'demande_id' => $demande->id,
+                'nom_fichier' => 'signature_' . $demande->id . '.' . $signature->getClientOriginalExtension(),
+                'chemin_fichier' => $sigPath,
+                'type_mime' => $signature->getMimeType(),
+                'taille_fichier' => $signature->getSize()
+            ]);
+        }
+
+        // Génération du contrat DOCX depuis un modèle si disponible
+        try {
+            $templatePath = resource_path('contracts/contrat.docx');
+            $piece_identite = ["cni" => "Carte nationale d'identité", "passport" => "Passport", "permis de conduire" => "Permis de conduire", "cart_sej" => "Carte de séjour"];
+            if (file_exists($templatePath)) {
+                $template = new TemplateProcessor($templatePath);
+                $template->setValue('first_name', $demande->first_name ?? '');
+                $template->setValue('last_name', $demande->last_name ?? '');
+                $template->setValue('email', $demande->email ?? '');
+                $template->setValue('numero_compte', $demande->numero_compte ?? '');
+                $template->setValue('montant', (string) $demande->montant);
+                $template->setValue('phone', $demande->phone ?? '');
+                $template->setValue('mode_paiement', $demande->mode_paiement ?? '');
+                $template->setValue('date', now()->format('d/m/Y'));
+                $template->setValue('bp', $demande->bp ?? '');
+                $template->setValue('employeur', $demande->employeur ?? '');
+                $template->setValue('civility', $demande->civility ?? '');
+                $template->setValue('address', $demande->address ?? '');
+                $template->setValue('city', $demande->city ?? '');
+                $template->setValue('piece_identite', $piece_identite[$demande->piece_identite] ?? '');
+                $template->setValue('numero_piece_identite', $demande->numero_piece_identite ?? '');
+                $template->setValue('date_de_delivrance_piece_identite', $demande->date_de_delivrance_piece_identite ?? '');
+                $template->setValue('date_naissance', $demande->date_naissance ?? '');
+                $template->setValue('lieu_naissance', $demande->lieu_naissance ?? '');
+                $template->setValue('nationalite', $demande->nationalite ?? '');
+                $template->setValue('profession', $demande->profession ?? '');
+                $template->setValue('employeur', $demande->employeur ?? '');
+
+
+                $contractDir = 'contrats/' . $demande->id;
+                $contractName = 'contrat_' . $demande->id . '.docx';
+                $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
+                // Sauvegarde temporaire
+                $template->saveAs($tempFile);
+                // Stockage sur disque public
+                $storedPath = $contractDir . '/' . $contractName;
+                Storage::disk('public')->put($storedPath, file_get_contents($tempFile));
+                @unlink($tempFile);
+
+                // Enregistrer comme pièce jointe
+                PieceJointe::create([
+                    'demande_id' => $demande->id,
+                    'nom_fichier' => $contractName,
+                    'chemin_fichier' => $storedPath,
+                    'type_mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'taille_fichier' => Storage::disk('public')->size($storedPath),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Erreur génération contrat DOCX: ' . $e->getMessage());
+        }
+
         try {
             // Charger la relation pieceJointes avant d'envoyer l'email
             $demande->load('pieceJointes');
@@ -147,7 +244,7 @@ class DemandeController extends Controller
             Mail::to($demande->email)->send(new DemandeCreatedMail($demande));
         } catch (\Exception $e) {
             // Log l'erreur mais continuer l'exécution
-            \Log::error('Erreur lors de l\'envoi de l\'email: ' . $e->getMessage());
+            Log::error('Erreur lors de l\'envoi de l\'email: ' . $e->getMessage());
         }
 
         return redirect()->back()->with('success', 'Demande créée avec succès');
@@ -554,4 +651,142 @@ class DemandeController extends Controller
        ]);
     }
 
+    public function previewContract(Request $request)
+    {
+        $data = $request->query();
+        dd($data);
+        $validator = Validator::make($data, [
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'numero_compte' => ['required', 'string', 'regex:/^371[0-9]+$/', 'max:50'],
+            'email' => 'required|email|max:255',
+            'montant' => 'required',
+            'phone' => 'nullable|string|max:20',
+            'mode_paiement' => 'nullable|string|max:50',
+
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => 'Paramètres invalides', 'messages' => $validator->errors()], 422);
+        }
+
+        $templatePath = resource_path('contracts/contrat.docx');
+        if (!file_exists($templatePath)) {
+            return response()->json(['error' => 'Modèle de contrat introuvable.'], 404);
+        }
+
+        $tmpDocx = tempnam(sys_get_temp_dir(), 'preview_');
+        $tmpHtml = tempnam(sys_get_temp_dir(), 'html_');
+
+        try {
+            $processor = new TemplateProcessor($templatePath);
+            $processor->setValue('first_name', $data['first_name'] ?? '');
+            $processor->setValue('last_name', $data['last_name'] ?? '');
+            $processor->setValue('email', $data['email'] ?? '');
+            $processor->setValue('numero_compte', $data['numero_compte'] ?? '');
+            $processor->setValue('montant', (string) ($data['montant'] ?? ''));
+            $processor->setValue('phone', $data['phone'] ?? '');
+            $processor->setValue('mode_paiement', $data['mode_paiement'] ?? '');
+            $processor->setValue('date_de_delivrance_piece_identite', $data['date_de_delivrance_piece_identite'] ?? '');
+            $processor->setValue('date_naissance', $data['date_naissance'] ?? '');
+            $processor->setValue('lieu_naissance', $data['lieu_naissance'] ?? '');
+            $processor->setValue('nationalite', $data['nationalite'] ?? '');
+            $processor->setValue('profession', $data['profession'] ?? '');
+            $processor->setValue('employeur', $data['employeur'] ?? '');
+            $processor->setValue('civility', $data['civility'] ?? '');
+            $processor->setValue('date', now()->format('d/m/Y'));
+
+            $processor->saveAs($tmpDocx);
+
+            $phpWord = IOFactory::load($tmpDocx, 'Word2007');
+            $htmlWriter = IOFactory::createWriter($phpWord, 'HTML');
+            $htmlWriter->save($tmpHtml);
+
+            $html = file_get_contents($tmpHtml);
+            @unlink($tmpDocx);
+            @unlink($tmpHtml);
+
+            return response()->json([
+                'html' => $html,
+            ]);
+        } catch (\Throwable $e) {
+            @unlink($tmpDocx);
+            @unlink($tmpHtml);
+            Log::error('Erreur aperçu contrat: '.$e->getMessage());
+            return response()->json(['error' => 'Impossible de générer l\'aperçu.'], 500);
+        }
+    }
+
+    public function previewContractDocx(Request $request)
+    {
+        $data = $request->query();
+        $validator = Validator::make($data, [
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'numero_compte' => ['required', 'string', 'regex:/^371[0-9]+$/', 'max:50'],
+            'email' => 'required|email|max:255',
+            'montant' => 'required',
+            'phone' => 'nullable|string|max:20',
+            'mode_paiement' => 'nullable|string|max:50',
+            'public_base' => 'nullable|string',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => 'Paramètres invalides', 'messages' => $validator->errors()], 422);
+        }
+
+        // Chemin du template DOCX (respecte la casse du fichier existant dans resources/contracts)
+        $templateCandidates = [
+            resource_path('contracts/Contrat.docx'),
+            resource_path('contracts/contrat.docx'),
+        ];
+        $templatePath = null;
+        foreach ($templateCandidates as $candidate) {
+            if (file_exists($candidate)) { $templatePath = $candidate; break; }
+        }
+        if (!$templatePath) {
+            return response()->json(['error' => 'Modèle de contrat introuvable.'], 404);
+        }
+
+        $tmpDocx = tempnam(sys_get_temp_dir(), 'preview_');
+
+        try {
+            $processor = new TemplateProcessor($templatePath);
+            $processor->setValue('first_name', $data['first_name'] ?? '');
+            $processor->setValue('last_name', $data['last_name'] ?? '');
+            $processor->setValue('email', $data['email'] ?? '');
+            $processor->setValue('numero_compte', $data['numero_compte'] ?? '');
+            $processor->setValue('montant', (string) ($data['montant'] ?? ''));
+            $processor->setValue('phone', $data['phone'] ?? '');
+            $processor->setValue('mode_paiement', $data['mode_paiement'] ?? '');
+            $processor->setValue('date', now()->format('d/m/Y'));
+            $processor->saveAs($tmpDocx);
+
+            // Stocker une copie accessible publiquement pour viewers externes
+            $storedDir = 'previews/contracts';
+            $storedName = 'contrat_preview_' . uniqid() . '.docx';
+            $storedPath = $storedDir . '/' . $storedName;
+            Storage::disk('public')->put($storedPath, file_get_contents($tmpDocx));
+
+            @unlink($tmpDocx);
+
+            $publicBase = $data['public_base'] ?? config('app.url');
+            $publicBase = rtrim((string) $publicBase, '/');
+            $docxRelativeUrl = '/storage/' . ltrim($storedPath, '/');
+            $docxUrl = $publicBase . $docxRelativeUrl;
+
+            // URLs de visualisation via Google Docs et Office Online
+            $googleViewUrl = 'https://docs.google.com/gview?embedded=1&url=' . urlencode($docxUrl);
+            $officeViewUrl = 'https://view.officeapps.live.com/op/view.aspx?src=' . urlencode($docxUrl);
+
+            return response()->json([
+                'docx_relative_url' => $docxRelativeUrl,
+                'docx_url' => $docxUrl,
+                'google_view_url' => $googleViewUrl,
+                'office_view_url' => $officeViewUrl,
+            ]);
+        } catch (\Throwable $e) {
+            @unlink($tmpDocx);
+            Log::error('Erreur aperçu contrat DOCX: ' . $e->getMessage());
+            return response()->json(['error' => 'Impossible de générer le DOCX.'], 500);
+        }
+    }
 }

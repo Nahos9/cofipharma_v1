@@ -7,6 +7,7 @@ import InputError from '@/Components/InputError'
 import PrimaryButton from '@/Components/PrimaryButton'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import FooterHome from '@/Components/FooterHome'
 
 const AvSalaire = ({ auth, flash }) => {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -184,6 +185,8 @@ const AvSalaire = ({ auth, flash }) => {
                     </div>
                 </form>
             </div>
+            <FooterHome/>
+
         </div>
     )
 }

@@ -9,7 +9,7 @@ import { Eye, EyeOff, Mail, Lock, LoaderPinwheel } from 'lucide-react';
 import { useState } from 'react';
 
 import "./Login.css"
-export default function Login({ status, canResetPassword, firstLogin }) {
+export default function Login({ firstLogin }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',

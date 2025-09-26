@@ -378,5 +378,7 @@ Route::middleware(['auth','verified','role:charge client'])->prefix('charge_clie
     Route::delete('/av_salaire/{id}', [AvSalaireController::class, 'destroy'])->name('av_salaire.destroy');
 });
 
+Route::get('/contracts/preview', [DemandeController::class, 'previewContract'])->middleware('auth')->name('contracts.preview');
+Route::get('/contracts/preview-docx', [DemandeController::class, 'previewContractDocx'])->middleware('auth')->name('contracts.previewDocx');
 
 require __DIR__.'/auth.php';

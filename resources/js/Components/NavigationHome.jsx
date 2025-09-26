@@ -1,12 +1,35 @@
 import React, { useState } from 'react'
 import { BriefcaseMedical, Menu, X } from 'lucide-react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import { Button } from './ui/button';
 
 
-const NavigationHome = () => {
-  const { url } = usePage();
+const NavigationHome = ({ user }) => {
+  const { url, props } = usePage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const currentUser = user ?? props?.auth?.user ?? null;
+  const clearAllCookies = () => {
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    for (const cookie of cookies) {
+      const eqPos = cookie.indexOf('=');
+      const name = (eqPos > -1 ? cookie.substr(0, eqPos) : cookie).trim();
+      if (!name) continue;
+      // Expire cookie on root path
+      document.cookie = `${name}=; Max-Age=0; path=/`;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    }
+  };
+
+  const handleLogout = () => {
+    router.post(route('logout'), {}, {
+      preserveState: false,
+      onSuccess: () => {
+        try { clearAllCookies(); } catch (e) {}
+        // Redirection vers la page d'accueil/Welcome
+        window.location.href = '/';
+      }
+    });
+  }
 
   return (
     <div className='flex flex-col sm:flex-row justify-between items-center border-b border-black p-2'>
@@ -68,13 +91,25 @@ const NavigationHome = () => {
             </nav>
         </div>
 
-        <div className={`${isMenuOpen ? 'block' : 'hidden'} sm:block w-full sm:w-auto mt-4 sm:mt-0`}>
-            <Button variant="outline" className="w-full sm:w-auto hover:bg-blue-600 hover:text-white transition-colors duration-200">
-                <Link href="/login" className="w-full text-center">
-                    Connexion
+        {!currentUser ? (
+            <div className={`${isMenuOpen ? 'block' : 'hidden'} sm:block w-full sm:w-auto mt-4 sm:mt-0`}>
+                <Button variant="outline" className="w-full sm:w-auto hover:bg-blue-600 hover:text-white transition-colors duration-200">
+                    <Link href="/login" className="w-full text-center">
+                        Connexion
+                    </Link>
+                </Button>
+            </div>
+        ) : (
+            <div className="flex gap-2">
+                <Link >
+                    <Button>Mon espace</Button>
                 </Link>
-            </Button>
-        </div>
+                {/* <Link href={route('profile.edit')}>
+                    <Button>Mon espace</Button>
+                </Link> */}
+                <Button className="bg-red-500 hover:bg-red-600" onClick={handleLogout}>Déconnexion</Button>
+            </div>
+        )}
     </div>
   )
 }

@@ -29,7 +29,7 @@ export default function FooterHome() {
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/demandeAvSalaire" className="text-gray-300 hover:text-white transition-colors">
+                                <Link href="/av_salaire" className="text-gray-300 hover:text-white transition-colors">
                                     Demande avance sur salaire
                                 </Link>
                             </li>
