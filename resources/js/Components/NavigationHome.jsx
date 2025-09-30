@@ -101,9 +101,31 @@ const NavigationHome = ({ user }) => {
             </div>
         ) : (
             <div className="flex gap-2">
-                <Link >
+               {currentUser.role == 'client' && (
+                <Link href={route('client.dashboard')}>
                     <Button>Mon espace</Button>
                 </Link>
+               )}
+               {currentUser.role == 'responsable_ritel' && (
+                <Link href={route('responsable_ritel.dashboard')}>
+                    <Button>Mon espace</Button>
+                </Link>
+               )}
+               {currentUser.role == 'operation' && (
+                <Link href={route('operation.dashboard')}>
+                    <Button>Mon espace</Button>
+                </Link>
+               )}
+               {currentUser.role == 'charge client' && (
+                <Link href={route('caissiere.dashboard')}>
+                    <Button>Mon espace</Button>
+                </Link>
+               )}
+               {currentUser.role == 'visiteur' && (
+                <Link href={route('visiteur.dashboard')}>
+                    <Button>Mon espace</Button>
+                </Link>
+               )}
                 {/* <Link href={route('profile.edit')}>
                     <Button>Mon espace</Button>
                 </Link> */}

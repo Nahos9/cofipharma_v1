@@ -15,6 +15,8 @@ const Demande = () => {
 	const [docxUrl, setDocxUrl] = useState('');
 	const [docxRelativeUrl, setDocxRelativeUrl] = useState('');
 	const [useIframePreview, setUseIframePreview] = useState(false);
+	const [acceptanceText, setAcceptanceText] = useState('');
+	const [acceptTerms, setAcceptTerms] = useState(false);
 	const docxContainerRef = useRef(null);
 	const canvasRef = useRef(null);
 	const isDrawingRef = useRef(false);
@@ -65,10 +67,39 @@ const Demande = () => {
 		setData(prev => ({...prev, files: files}));
 	};
 
-	const fetchContractPreviewDocx = async () => {
-		try {
-			const publicBase = (window.PUBLIC_BASE || (import.meta?.env?.VITE_PUBLIC_BASE)) || '';
-			const params = new URLSearchParams({
+    const fetchContractPreviewDocx = async () => {
+        try {
+            const publicBase = (window.PUBLIC_BASE || (import.meta?.env?.VITE_PUBLIC_BASE)) || '';
+            let signatureRelativePath = '';
+
+            if (signatureDataUrl) {
+                try {
+                    const byteString = atob(signatureDataUrl.split(',')[1]);
+                    const mimeString = signatureDataUrl.split(',')[0].split(':')[1].split(';')[0];
+                    const ab = new ArrayBuffer(byteString.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteString.length; i++) {
+                        ia[i] = byteString.charCodeAt(i);
+                    }
+                    const blob = new Blob([ab], { type: mimeString });
+                    const fd = new FormData();
+                    fd.append('signature', blob, 'preview-signature.png');
+                    const uploadRes = await fetch(route('contracts.previewSignatureUpload'), {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    if (uploadRes.ok) {
+                        const up = await uploadRes.json();
+                        signatureRelativePath = up.signature_relative_path || '';
+                    }
+                } catch (e) {
+                    // ignore upload preview errors
+                }
+            }
+
+            const params = new URLSearchParams({
 				first_name: data.first_name || '',
 				last_name: data.last_name || '',
 				email: data.email || '',
@@ -88,6 +119,7 @@ const Demande = () => {
                 bp: data.bp || '',
                 piece_identite: data.piece_identite || '',
                 numero_piece_identite: data.numero_piece_identite || '',
+                signature_relative_path: signatureRelativePath || ''
 			});
 			if (publicBase) params.set('public_base', publicBase);
 			const url = `${route('contracts.previewDocx')}?${params.toString()}`;
@@ -114,7 +146,7 @@ const Demande = () => {
 		}
 		const next = Math.min(4, currentStep + 1);
 		setCurrentStep(next);
-		if (next === 4) {
+		if (next === 3) {
 			await fetchContractPreviewDocx();
 		}
 	};
@@ -199,6 +231,17 @@ const Demande = () => {
 
 	const handleFinalSubmit = (e) => {
 		e.preventDefault();
+		// Validations étape 4: acceptation
+		if (currentStep === 4) {
+			if (!acceptTerms) {
+				toast.warn('Veuillez cocher la case d\'acceptation.');
+				return;
+			}
+			if ((acceptanceText || '').trim().toLowerCase() !== 'j’ai lu et approuvé' && (acceptanceText || '').trim().toLowerCase() !== "j'ai lu et approuvé") {
+				toast.warn('Veuillez saisir exactement: "J’ai lu et approuvé".');
+				return;
+			}
+		}
 		const formData = new FormData();
 		formData.append('first_name', data.first_name);
 		formData.append('last_name', data.last_name);
@@ -220,25 +263,17 @@ const Demande = () => {
 		formData.append('employeur', data.employeur);
         formData.append('dure', "1");
         formData.append('date_de_delivrance_piece_identite', data.date_de_delivrance_piece_identite);
+		// Champs d'acceptation
+		formData.append('mention_text', acceptanceText);
+		formData.append('mention_accepted', acceptTerms ? '1' : '0');
 
 		data.files.forEach((file, index) => {
 			formData.append(`files[${index}]`, file);
 		});
 
-		if (signatureDataUrl) {
-			// Convertir DataURL en Blob
-			const byteString = atob(signatureDataUrl.split(',')[1]);
-			const mimeString = signatureDataUrl.split(',')[0].split(':')[1].split(';')[0];
-			const ab = new ArrayBuffer(byteString.length);
-			const ia = new Uint8Array(ab);
-			for (let i = 0; i < byteString.length; i++) {
-				ia[i] = byteString.charCodeAt(i);
-			}
-			const blob = new Blob([ab], { type: mimeString });
-			formData.append('signature', blob, 'signature.png');
-		}
+		// suppression de l'envoi de signature selon la nouvelle exigence
 
-		post(route('demandes.store'), {
+		router.post(route('demandes.store'), formData, {
 			forceFormData: true,
 			onSuccess: () => {
 				setData({
@@ -249,10 +284,29 @@ const Demande = () => {
 					phone: "",
 					numero_compte: "",
 					mode_paiement: "",
+                    mention_text: "",
+                    mention_accepted: "",
+                    mention_accepted_at: "",
+                    civility: "",
+                    address: "",
+                    city: "",
+                    bp: "",
+                    piece_identite: "",
+                    numero_piece_identite: "",
+                    date_naissance: "",
+                    lieu_naissance: "",
+                    nationalite: "",
+                    profession: "",
+                    employeur: "",
+                    dure: "",
+                    date_de_delivrance_piece_identite: "",
+                    signature: "",
 					files: []
 				});
 				setSelectedFiles([]);
 				setSignatureDataUrl(null);
+				setAcceptanceText('');
+				setAcceptTerms(false);
 				setCurrentStep(1);
 				toast.success('🎉 Votre demande a été envoyée avec succès.', { position: 'top-right' });
 				setTimeout(() => { router.visit(route('welcome')) }, 1200);
@@ -267,7 +321,7 @@ const Demande = () => {
 
 	useEffect(() => {
 		const renderDocx = async () => {
-			if (currentStep !== 4 || (!docxRelativeUrl && !docxUrl) || !docxContainerRef.current) return;
+			if (currentStep !== 3 || (!docxRelativeUrl && !docxUrl) || !docxContainerRef.current) return;
 			try {
 				const href = docxRelativeUrl || docxUrl;
 				const resp = await fetch(href, { credentials: 'same-origin' });
@@ -312,12 +366,12 @@ const Demande = () => {
 					<div className="w-full bg-gray-200 rounded-full h-2">
 						<div className="bg-blue-500 h-2 rounded-full" style={{ width: `${progressPercent}%` }} />
 					</div>
-					<div className="flex justify-between text-xs text-gray-600 mt-2">
-						<span>Étape 1: Formulaire</span>
-						<span>Étape 2: Récapitulatif</span>
-						<span>Étape 3: Signature</span>
-						<span>Étape 4: Contrat</span>
-					</div>
+			<div className="flex justify-between text-xs text-gray-600 mt-2">
+				<span>Étape 1: Formulaire</span>
+				<span>Étape 2: Récapitulatif</span>
+				<span>Étape 3: Contrat</span>
+				<span>Étape 4: Acceptation</span>
+			</div>
 				</div>
 
 				<form className="bg-white shadow-md rounded-lg px-4 sm:px-8 pt-6 pb-8 mb-4" onSubmit={currentStep === 4 ? handleFinalSubmit : goNext}>
@@ -713,70 +767,58 @@ const Demande = () => {
 						</div>
 					)}
 
-					{currentStep === 3 && (
-						<div className="space-y-4">
-							<h2 className="text-lg font-semibold text-gray-800">Contrat & Signature</h2>
-							<div className="bg-gray-50 rounded border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed max-h-56 overflow-auto">
-								<p>
-									En validant, vous confirmez l'exactitude des informations fournies et acceptez les termes du contrat de financement CofiExpress. Vous autorisez la vérification de vos données et l'utilisation de vos documents pour l'étude de votre dossier.
-								</p>
-								<p className="mt-2">
-									Veuillez signer ci-dessous pour finaliser votre demande.
-								</p>
-							</div>
-
-							<div>
-								<div className="mb-2 text-gray-600 text-sm">Signature du demandeur</div>
-								<div className="border rounded-md bg-white">
-									<canvas
-										ref={canvasRef}
-										style={{ width: '100%', height: 180, touchAction: 'none', display: 'block' }}
-										onMouseDown={handleStartDraw}
-										onMouseMove={handleMoveDraw}
-										onMouseUp={handleEndDraw}
-										onMouseLeave={handleEndDraw}
-										onTouchStart={handleStartDraw}
-										onTouchMove={handleMoveDraw}
-										onTouchEnd={handleEndDraw}
+			{currentStep === 3 && (
+				<div className="space-y-4">
+					<h2 className="text-lg font-semibold text-gray-800">Aperçu du contrat</h2>
+					<div className="bg-gray-50 rounded border border-gray-200 p-2">
+						<div className="relative w-full" style={{ minHeight: '40vh' }}>
+							{!useIframePreview && (
+								<div ref={docxContainerRef} className="docx-container w-full h-full overflow-auto" style={{ maxHeight: '70vh' }} />
+							)}
+							{useIframePreview && (officeViewUrl || googleViewUrl) && (
+								<div className="w-full" style={{ height: '70vh' }}>
+									<iframe
+										title="Aperçu du contrat"
+										src={officeViewUrl || googleViewUrl}
+										style={{ width: '100%', height: '100%', border: 0 }}
+										allow="fullscreen"
 									/>
 								</div>
-								<div className="flex gap-2">
-									<button type="button" className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300" onClick={clearSignature}>Effacer</button>
-									<button type="button" className="px-3 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600" onClick={saveSignature}>Enregistrer la signature</button>
-								</div>
-								{signatureDataUrl && (
-									<div className="mt-2">
-										<div className="text-xs text-gray-500 mb-1">Aperçu:</div>
-										<img src={signatureDataUrl} alt="Signature" className="border rounded max-h-24" />
-									</div>
-								)}
-							</div>
+							)}
 						</div>
-					)}
-
-					{currentStep === 4 && (
-						<div className="space-y-4">
-							<h2 className="text-lg font-semibold text-gray-800">Aperçu du contrat</h2>
-							<div className="bg-gray-50 rounded border border-gray-200 p-2">
-				<div className="relative w-full" style={{ minHeight: '40vh' }}>
-					{!useIframePreview && (
-						<div ref={docxContainerRef} className="docx-container w-full h-full overflow-auto" style={{ maxHeight: '70vh' }} />
-					)}
-					{useIframePreview && (officeViewUrl || googleViewUrl) && (
-						<div className="w-full" style={{ height: '70vh' }}>
-							<iframe
-								title="Aperçu du contrat"
-								src={officeViewUrl || googleViewUrl}
-								style={{ width: '100%', height: '100%', border: 0 }}
-								allow="fullscreen"
-							/>
-						</div>
-					)}
+					</div>
 				</div>
+			)}
 
-							</div>
+			{currentStep === 4 && (
+				<div className="space-y-4">
+					<h2 className="text-lg font-semibold text-gray-800">Acceptation</h2>
+					<div className="bg-gray-50 rounded border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed max-h-56 overflow-auto">
+						<p>
+							En validant, vous confirmez l'exactitude des informations fournies et acceptez les termes du contrat de financement CofiExpress. Vous autorisez la vérification de vos données et l'utilisation de vos documents pour l'étude de votre dossier.
+						</p>
+						<p className="mt-2">
+							Saisissez « J’ai lu et approuvé » et cochez la case pour confirmer.
+						</p>
+					</div>
+
+					<div>
+						<label className="block text-sm text-gray-700 mb-1">Texte d’acceptation</label>
+						<input
+							className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+							placeholder="J’ai lu et approuvé"
+							value={acceptanceText}
+							onChange={(e)=> setAcceptanceText(e.target.value)}
+						/>
+						<div className="mt-2 flex items-center gap-2">
+							<input id="acceptTerms" type="checkbox" checked={acceptTerms} onChange={(e)=> setAcceptTerms(e.target.checked)} />
+							<label htmlFor="acceptTerms" className="text-sm text-gray-700">Je confirme avoir lu et approuvé</label>
 						</div>
-					)}
+					</div>
+
+					{/* Signature supprimée selon nouvelle exigence */}
+				</div>
+			)}
 
 					<div className="flex items-center justify-between mt-6">
 						<button

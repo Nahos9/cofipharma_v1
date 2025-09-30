@@ -23,6 +23,29 @@ class ForcePasswordChangeController extends Controller
         $user->password_change_required = false;
         $user->save();
 
-        return redirect()->route('login')->with('success', 'Mot de passe modifié avec succès');
+        if($user->role == 'client'){
+            return redirect()->intended(route('welcome'))
+                ->with('success', 'Mot de passe modifié avec succès');
+        }
+        elseif($user->role == 'responsable_ritel'){
+            return redirect()->intended(route('responsable_ritel.dashboard'))
+                ->with('success', 'Mot de passe modifié avec succès');
+        }
+        elseif($user->role == 'operation'){
+            return redirect()->intended(route('operation.dashboard'))
+                ->with('success', 'Mot de passe modifié avec succès');
+        }
+        elseif($user->role == 'charge client'){
+            return redirect()->intended(route('caissiere.dashboard'))
+                ->with('success', 'Mot de passe modifié avec succès');
+        }
+        elseif($user->role == 'visiteur'){
+            return redirect()->intended(route('visiteur.dashboard'))
+                ->with('success', 'Mot de passe modifié avec succès');
+        }
+        elseif($user->role == 'admin'){
+            return redirect()->intended(route('admin.dashboard'))
+                ->with('success', 'Mot de passe modifié avec succès');
+        }
     }
 }

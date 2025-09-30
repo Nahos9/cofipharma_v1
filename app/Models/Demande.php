@@ -33,7 +33,11 @@ class Demande extends Model
        'profession',
        'employeur',
        'dure',
-       'date_de_delivrance_piece_identite'
+       'date_de_delivrance_piece_identite',
+       'user_id',
+       'mention_text',
+       'mention_accepted',
+       'mention_accepted_at'
 
     ];
 

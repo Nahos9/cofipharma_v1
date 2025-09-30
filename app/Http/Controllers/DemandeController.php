@@ -8,6 +8,7 @@ use App\Mail\DemandeMail;
 use App\Mail\ValidationMail;
 use App\Models\Demande;
 use App\Models\PieceJointe;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +38,10 @@ class DemandeController extends Controller
             ]);
         }elseif(Auth::user()->role == "charge client"){
             return Inertia::render('caissiere/demandes/EditDemande', [
+                'demande' => $demande->load(['user', 'pieceJointes'])
+            ]);
+        }elseif(Auth::user()->role == "client"){
+            return Inertia::render('client/demandes/EditDemande', [
                 'demande' => $demande->load(['user', 'pieceJointes'])
             ]);
         }else{
@@ -120,7 +125,10 @@ class DemandeController extends Controller
             'profession' => 'nullable|string|max:100',
             'employeur' => 'nullable|string|max:255',
             'files.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:20240', // max 10MB par fichier
-            'signature' => 'nullable|file|mimes:png,jpg,jpeg|max:10240'
+            'signature' => 'nullable|file|mimes:png,jpg,jpeg|max:10240',
+            // Acceptation
+            'mention_text' => 'required|string|min:5',
+            'mention_accepted' => 'required|boolean'
         ], $messages);
 
         // Création de la demande
@@ -149,9 +157,15 @@ class DemandeController extends Controller
             'nationalite' => $request->nationalite,
             'profession' => $request->profession,
             'employeur' => $request->employeur,
+            'user_id' => Auth::user()->id,
+            // Acceptation
+            'mention_text' => $request->mention_text,
+            'mention_accepted' => (bool) $request->boolean('mention_accepted'),
+            'mention_accepted_at' => now(),
         ]);
 
         // Traitement des fichiers
+        $sigPath = null;
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
                 // Stockage du fichier
@@ -184,7 +198,14 @@ class DemandeController extends Controller
         // Génération du contrat DOCX depuis un modèle si disponible
         try {
             $templatePath = resource_path('contracts/contrat.docx');
-            $piece_identite = ["cni" => "Carte nationale d'identité", "passport" => "Passport", "permis de conduire" => "Permis de conduire", "cart_sej" => "Carte de séjour"];
+            $piece_identites = ["cni" => "Carte nationale d'identité", "passport" => "Passport", "permis de conduire" => "Permis de conduire", "cart_sej" => "Carte de séjour"];
+            $piece = "";
+            if($demande->piece_identite == "cni" || $demande->piece_identite == "cart_sej"){
+                $piece = "de la";
+            }elseif($demande->piece_identite == "passport" || $demande->piece_identite == "permis de conduire"){
+                $piece = "du";
+            }
+
             if (file_exists($templatePath)) {
                 $template = new TemplateProcessor($templatePath);
                 $template->setValue('first_name', $demande->first_name ?? '');
@@ -200,7 +221,7 @@ class DemandeController extends Controller
                 $template->setValue('civility', $demande->civility ?? '');
                 $template->setValue('address', $demande->address ?? '');
                 $template->setValue('city', $demande->city ?? '');
-                $template->setValue('piece_identite', $piece_identite[$demande->piece_identite] ?? '');
+                $template->setValue('piece_identite', $piece_identites[$demande->piece_identite] ?? '');
                 $template->setValue('numero_piece_identite', $demande->numero_piece_identite ?? '');
                 $template->setValue('date_de_delivrance_piece_identite', $demande->date_de_delivrance_piece_identite ?? '');
                 $template->setValue('date_naissance', $demande->date_naissance ?? '');
@@ -208,6 +229,10 @@ class DemandeController extends Controller
                 $template->setValue('nationalite', $demande->nationalite ?? '');
                 $template->setValue('profession', $demande->profession ?? '');
                 $template->setValue('employeur', $demande->employeur ?? '');
+                $template->setValue('piece', $piece ?? '');
+
+                // Ne plus insérer d'image de signature dans le contrat
+                $template->setValue('signature', '');
 
 
                 $contractDir = 'contrats/' . $demande->id;
@@ -329,6 +354,60 @@ class DemandeController extends Controller
         }
 
     }
+
+    public function uploadSignedContract(Request $request, Demande $demande)
+    {
+        $request->validate([
+            'signed_contract' => 'required|file|mimes:pdf,doc,docx|max:10240',
+            'source_contract_id' => 'nullable|exists:piece_jointes,id',
+        ]);
+
+        // Empêcher l'upload d'un second contrat signé
+        $hasSignedContract = PieceJointe::where('demande_id', $demande->id)
+            ->where('chemin_fichier', 'like', 'contrats_signes/' . $demande->id . '/%')
+            ->exists();
+
+        if ($hasSignedContract) {
+            return redirect()->back()->withErrors([
+                'signed_contract' => 'Un contrat signé existe déjà pour cette demande.'
+            ]);
+        }
+
+        $file = $request->file('signed_contract');
+
+        $storedPath = $file->store('contrats_signes/' . $demande->id, 'public');
+
+        $pieceJointe = PieceJointe::create([
+            'demande_id' => $demande->id,
+            'nom_fichier' => 'contrat_signe_' . $demande->id . '.' . $file->getClientOriginalExtension(),
+            'chemin_fichier' => $storedPath,
+            'type_mime' => $file->getMimeType(),
+            'taille_fichier' => $file->getSize()
+        ]);
+
+        return redirect()->back()->with('success', 'Contrat signé téléversé avec succès');
+    }
+
+    public function saveMention(Request $request, Demande $demande)
+    {
+        $validated = $request->validate([
+            'mention_text' => 'required|string|min:5',
+            'mention_accepted' => 'required|boolean',
+        ]);
+
+        if (!$validated['mention_accepted']) {
+            return redirect()->back()->withErrors([
+                'mention_accepted' => 'Vous devez accepter la mention.'
+            ]);
+        }
+
+        $demande->mention_text = $validated['mention_text'];
+        $demande->mention_accepted = true;
+        $demande->mention_accepted_at = now();
+        $demande->save();
+
+        return redirect()->back()->with('success', 'Mention enregistrée avec succès');
+    }
     public function all(Request $request)
     {
         $query = Demande::with('user')
@@ -364,6 +443,32 @@ class DemandeController extends Controller
         }
         if(Auth::user()->role == "visiteur"){
             return Inertia::render('visiteur/demandes/AllDemandes', [
+                'demandes' => $demandes,
+                'filters' => $request->only(['search', 'status'])
+            ]);
+        }
+        if(Auth::user()->role == "client"){
+            $query = Demande::with('user')
+            ->when($request->search, function($query) use ($request) {
+                $query->where(function($q) use ($request) {
+                    $q->whereHas('user', function($q) use ($request) {
+                        $q->where('first_name', 'like', "%{$request->search}%");
+                    })
+                    ->orWhere('montant', 'like', "%{$request->search}%")
+                    ->orWhere('last_name', 'like', "%{$request->search}%")
+                    ->orWhere('email', 'like', "%{$request->search}%");
+                });
+            })
+            ->when($request->status, function($query) use ($request) {
+                $query->where('status', $request->status);
+            })
+            ->where('is_deleted',0)
+            ->where('user_id', Auth::user()->id)
+            ->latest();
+
+        $demandes = $query->paginate(10)
+            ->withQueryString();
+            return Inertia::render('client/demandes/AllDemandes', [
                 'demandes' => $demandes,
                 'filters' => $request->only(['search', 'status'])
             ]);
@@ -654,7 +759,6 @@ class DemandeController extends Controller
     public function previewContract(Request $request)
     {
         $data = $request->query();
-        dd($data);
         $validator = Validator::make($data, [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
@@ -678,6 +782,14 @@ class DemandeController extends Controller
         $tmpHtml = tempnam(sys_get_temp_dir(), 'html_');
 
         try {
+            $piece_identites = ["cni" => "Carte nationale d'identité", "passport" => "Passport", "permis de conduire" => "Permis de conduire", "cart_sej" => "Carte de séjour"];
+            $piece = "";
+            if($data['piece_identite'] == "cni" || $data['piece_identite'] == "cart_sej"){
+                $piece = "de la";
+            }elseif($data['piece_identite'] == "passport" || $data['piece_identite'] == "permis de conduire"){
+                $piece = "du";
+            }
+            dd($piece);
             $processor = new TemplateProcessor($templatePath);
             $processor->setValue('first_name', $data['first_name'] ?? '');
             $processor->setValue('last_name', $data['last_name'] ?? '');
@@ -686,13 +798,19 @@ class DemandeController extends Controller
             $processor->setValue('montant', (string) ($data['montant'] ?? ''));
             $processor->setValue('phone', $data['phone'] ?? '');
             $processor->setValue('mode_paiement', $data['mode_paiement'] ?? '');
+            $processor->setValue('bp', $data['bp'] ?? '');
+            $processor->setValue('employeur', $data['employeur'] ?? '');
+            $processor->setValue('civility', $data['civility'] ?? '');
+            $processor->setValue('address', $data['address'] ?? '');
+            $processor->setValue('city', $data['city'] ?? '');
+            $processor->setValue('piece_identite', $piece_identites[$data['piece_identite']] ?? '');
+            $processor->setValue('numero_piece_identite', $data['numero_piece_identite'] ?? '');
             $processor->setValue('date_de_delivrance_piece_identite', $data['date_de_delivrance_piece_identite'] ?? '');
             $processor->setValue('date_naissance', $data['date_naissance'] ?? '');
             $processor->setValue('lieu_naissance', $data['lieu_naissance'] ?? '');
             $processor->setValue('nationalite', $data['nationalite'] ?? '');
             $processor->setValue('profession', $data['profession'] ?? '');
-            $processor->setValue('employeur', $data['employeur'] ?? '');
-            $processor->setValue('civility', $data['civility'] ?? '');
+            $processor->setValue('piece', $piece ?? '');
             $processor->setValue('date', now()->format('d/m/Y'));
 
             $processor->saveAs($tmpDocx);
@@ -728,6 +846,19 @@ class DemandeController extends Controller
             'phone' => 'nullable|string|max:20',
             'mode_paiement' => 'nullable|string|max:50',
             'public_base' => 'nullable|string',
+            'signature_relative_path' => 'nullable|string',
+            'bp' => 'nullable|string',
+            'employeur' => 'nullable|string',
+            'civility' => 'nullable|string',
+            'address' => 'nullable|string',
+            'city' => 'nullable|string',
+            'piece_identite' => 'nullable|string',
+            'numero_piece_identite' => 'nullable|string',
+            'date_de_delivrance_piece_identite' => 'nullable|string',
+            'date_naissance' => 'nullable|string',
+            'lieu_naissance' => 'nullable|string',
+            'nationalite' => 'nullable|string',
+            'profession' => 'nullable|string',
         ]);
         if ($validator->fails()) {
             return response()->json(['error' => 'Paramètres invalides', 'messages' => $validator->errors()], 422);
@@ -748,6 +879,15 @@ class DemandeController extends Controller
 
         $tmpDocx = tempnam(sys_get_temp_dir(), 'preview_');
 
+        //pour modifier la preview du contrat c'est ici qu'il faut faire les modifications
+        $piece_identites = ["cni" => "Carte nationale d'identité", "passport" => "Passport", "permis de conduire" => "Permis de conduire", "cart_sej" => "Carte de séjour"];
+        $piece = "";
+        if($data['piece_identite'] == "cni" || $data['piece_identite'] == "cart_sej"){
+            $piece = "de la";
+        }elseif($data['piece_identite'] == "passport" || $data['piece_identite'] == "permis de conduire"){
+            $piece = "du";
+        }
+
         try {
             $processor = new TemplateProcessor($templatePath);
             $processor->setValue('first_name', $data['first_name'] ?? '');
@@ -757,7 +897,38 @@ class DemandeController extends Controller
             $processor->setValue('montant', (string) ($data['montant'] ?? ''));
             $processor->setValue('phone', $data['phone'] ?? '');
             $processor->setValue('mode_paiement', $data['mode_paiement'] ?? '');
+            $processor->setValue('bp', $data['bp'] ?? '');
+            $processor->setValue('employeur', $data['employeur'] ?? '');
+            $processor->setValue('civility', $data['civility'] ?? '');
+            $processor->setValue('address', $data['address'] ?? '');
+            $processor->setValue('city', $data['city'] ?? '');
+            $processor->setValue('piece_identite', $piece_identites[$data['piece_identite']] ?? '');
+            $processor->setValue('numero_piece_identite', $data['numero_piece_identite'] ?? '');
+            $processor->setValue('date_de_delivrance_piece_identite', Carbon::parse($data['date_de_delivrance_piece_identite'])->format('d/m/Y') ?? '');
+            $processor->setValue('date_naissance', Carbon::parse($data['date_naissance'])->format('d/m/Y') ?? '');
+            $processor->setValue('lieu_naissance', $data['lieu_naissance'] ?? '');
+            $processor->setValue('nationalite', $data['nationalite'] ?? '');
+            $processor->setValue('profession', $data['profession'] ?? '');
+            $processor->setValue('piece', $piece ?? '');
             $processor->setValue('date', now()->format('d/m/Y'));
+
+
+            // Signature image pour preview si fournie
+            if (!empty($data['signature_relative_path'])) {
+                $absoluteSigPath = storage_path('app/public/' . ltrim($data['signature_relative_path'], '/'));
+                if (file_exists($absoluteSigPath)) {
+                    $processor->setImageValue('signature', [
+                        'path' => $absoluteSigPath,
+                        'width' => 200,
+                        'height' => 80,
+                        'ratio' => true,
+                    ]);
+                } else {
+                    $processor->setValue('signature', '');
+                }
+            } else {
+                $processor->setValue('signature', '');
+            }
             $processor->saveAs($tmpDocx);
 
             // Stocker une copie accessible publiquement pour viewers externes
@@ -788,5 +959,24 @@ class DemandeController extends Controller
             Log::error('Erreur aperçu contrat DOCX: ' . $e->getMessage());
             return response()->json(['error' => 'Impossible de générer le DOCX.'], 500);
         }
+    }
+
+    public function previewSignatureUpload(Request $request)
+    {
+        $request->validate([
+            'signature' => 'required|file|mimes:png,jpg,jpeg|max:10240'
+        ]);
+
+        $file = $request->file('signature');
+        $storedPath = $file->store('previews/signatures', 'public');
+
+        $publicBase = rtrim((string) config('app.url'), '/');
+        $relative = '/storage/' . ltrim($storedPath, '/');
+        $url = $publicBase . $relative;
+
+        return response()->json([
+            'signature_relative_path' => $storedPath,
+            'signature_url' => $url,
+        ]);
     }
 }

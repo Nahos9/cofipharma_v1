@@ -38,6 +38,7 @@ return new class extends Migration
             $table->string('user_validateur_level')->nullable();
             $table->boolean('is_deleted')->default(false);
             $table->string('user_who_deleted')->nullable();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade')->nullable();
             $table->timestamps();
         });
     }

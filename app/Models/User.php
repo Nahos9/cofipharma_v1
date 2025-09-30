@@ -48,6 +48,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function demandes()
+    {
+        return $this->hasMany(Demande::class);
+    }
+
     public function hasRole($role)
     {
         return $this->role === $role;

@@ -2,6 +2,7 @@ import InputError from '@/Components/InputError';
 import { useForm,router } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderPinwheel, Mail, Lock, User } from 'lucide-react';
 import React, { useState } from 'react'
+import { useToaster } from 'react-hot-toast';
 
 const Inscription = () => {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -12,7 +13,7 @@ const Inscription = () => {
         role:''
     });
 
-    const toast = useToast();
+    const toast = useToaster();
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route('storeClient'));

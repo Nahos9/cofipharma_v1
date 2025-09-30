@@ -52,6 +52,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\EnsurePasswordChange
     Route::put('/demandes/{demande}/validate',[DemandeController::class,'validateOrReject'])->name('demandes.validateOrReject');
     Route::put('/demandes/{demande}', [DemandeController::class, 'update'])->name('demandes.update');
     Route::post('/demandes/delete-multiple', [DemandeController::class, 'deleteMultiple'])->name('demandes.delete-multiple');
+    // Upload contrat signé
+    Route::post('/demandes/{demande}/upload-signed-contract', [DemandeController::class, 'uploadSignedContract'])->name('demandes.uploadSignedContract');
+    Route::post('/demandes/{demande}/save-mention', [DemandeController::class, 'saveMention'])->name('demandes.saveMention');
 });
 
 Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordChanged::class])->group(function () {
@@ -380,5 +383,19 @@ Route::middleware(['auth','verified','role:charge client'])->prefix('charge_clie
 
 Route::get('/contracts/preview', [DemandeController::class, 'previewContract'])->middleware('auth')->name('contracts.preview');
 Route::get('/contracts/preview-docx', [DemandeController::class, 'previewContractDocx'])->middleware('auth')->name('contracts.previewDocx');
+Route::post('/contracts/preview-signature', [DemandeController::class, 'previewSignatureUpload'])->middleware('auth')->name('contracts.previewSignatureUpload');
+
+Route::middleware(['auth','verified','role:client'])->prefix('client')->name('client.')->group(function(){
+    Route::get('/dashboard', function () {
+        return Inertia::render('client/DashboardClient');
+    })->name('dashboard');
+    Route::get('/demandes/all', [DemandeController::class, 'all'])->name('demandes.all');
+    Route::get('/demandes/{demande}/edit', [DemandeController::class, 'edit'])->name('demandes.edit');
+    Route::get('/av_salaire',[AvSalaireController::class,'all'])->name('av_salaire.all');
+    Route::post('/av_salaire',[AvSalaireController::class,'store'])->name('store.av_salaire');
+    Route::get('/av_salaire/{id}/edit',[AvSalaireController::class,'edit'])->name('av_salaire.edit');
+    Route::put('/av_salaire/{id}/validate',[AvSalaireController::class,'validateAvSalaire'])->name('av_salaire.validate');
+    Route::delete('/av_salaire/{id}', [AvSalaireController::class, 'destroy'])->name('av_salaire.destroy');
+});
 
 require __DIR__.'/auth.php';
