@@ -664,7 +664,7 @@ const Demande = () => {
                                         <option value="mobile">Mobile monaie</option>
                                         <option value="carte">Carte prépayée</option>
                                     </select>
-							</div>
+							    </div>
 							{data.mode_paiement == "mobile" && <div className="mb-4">
 								<label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="telephone">
 								   Numéro de téléphone (*)

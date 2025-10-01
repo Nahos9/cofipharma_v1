@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
+use PhpOffice\PhpWord\TemplateProcessor;
 
 class AvSalaireController extends Controller
 {
@@ -22,6 +25,126 @@ class AvSalaireController extends Controller
                 'success' => session('success'),
                 'error' => session('error'),
             ],
+        ]);
+    }
+
+    public function previewContractDocx(Request $request)
+    {
+        $data = $request->query();
+        $validator = Validator::make($data, [
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'numero_compte' => ['required', 'string', 'regex:/^371[0-9]+$/', 'max:50'],
+            'email' => 'required|email|max:255',
+            'montant' => 'required',
+            'phone' => 'nullable|string|max:20',
+            'mode_paiement' => 'nullable|string|max:50',
+            'public_base' => 'nullable|string',
+            'signature_relative_path' => 'nullable|string',
+            'bp' => 'nullable|string',
+            'employeur' => 'nullable|string',
+            'civility' => 'nullable|string',
+            'address' => 'nullable|string',
+            'city' => 'nullable|string',
+            'piece_identite' => 'nullable|string',
+            'numero_piece_identite' => 'nullable|string',
+            'date_de_delivrance_piece_identite' => 'nullable|string',
+            'date_naissance' => 'nullable|string',
+            'lieu_naissance' => 'nullable|string',
+            'nationalite' => 'nullable|string',
+            'profession' => 'nullable|string',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => 'Paramètres invalides', 'messages' => $validator->errors()], 422);
+        }
+
+        $templateCandidates = [
+            resource_path('contracts/Contrat.docx'),
+            resource_path('contracts/contrat.docx'),
+        ];
+        $templatePath = null;
+        foreach ($templateCandidates as $candidate) {
+            if (file_exists($candidate)) { $templatePath = $candidate; break; }
+        }
+        if (!$templatePath) {
+            return response()->json(['error' => 'Modèle de contrat introuvable.'], 404);
+        }
+
+        $tmpDocx = tempnam(sys_get_temp_dir(), 'preview_');
+
+        try {
+            $processor = new TemplateProcessor($templatePath);
+
+            $piece_identites = [
+                'cni' => "Carte nationale d'identité",
+                'passport' => 'Passport',
+                'permis de conduire' => 'Permis de conduire',
+                'cart_sej' => 'Carte de séjour',
+            ];
+            $piece = '';
+            if (($data['piece_identite'] ?? '') === 'cni' || ($data['piece_identite'] ?? '') === 'cart_sej') {
+                $piece = 'de la';
+            } elseif (($data['piece_identite'] ?? '') === 'passport' || ($data['piece_identite'] ?? '') === 'permis de conduire') {
+                $piece = 'du';
+            }
+
+            $processor->setValue('first_name', $data['first_name'] ?? '');
+            $processor->setValue('last_name', $data['last_name'] ?? '');
+            $processor->setValue('email', $data['email'] ?? '');
+            $processor->setValue('numero_compte', $data['numero_compte'] ?? '');
+            $processor->setValue('montant', (string) ($data['montant'] ?? ''));
+            $processor->setValue('phone', $data['phone'] ?? '');
+            $processor->setValue('mode_paiement', $data['mode_paiement'] ?? '');
+            $processor->setValue('date', now()->format('d/m/Y'));
+            $processor->setValue('bp', $data['bp'] ?? '');
+            $processor->setValue('employeur', $data['employeur'] ?? '');
+            $processor->setValue('civility', $data['civility'] ?? '');
+            $processor->setValue('address', $data['address'] ?? '');
+            $processor->setValue('city', $data['city'] ?? '');
+            $processor->setValue('piece_identite', $piece_identites[$data['piece_identite']] ?? '');
+            $processor->setValue('numero_piece_identite', $data['numero_piece_identite'] ?? '');
+            $processor->setValue('date_de_delivrance_piece_identite', $data['date_de_delivrance_piece_identite'] ?? '');
+            if (!empty($data['date_naissance'])) {
+                try { $processor->setValue('date_naissance', Carbon::parse($data['date_naissance'])->format('d/m/Y')); }
+                catch (\Throwable $e) { $processor->setValue('date_naissance', $data['date_naissance']); }
+            } else {
+                $processor->setValue('date_naissance', '');
+            }
+            $processor->setValue('lieu_naissance', $data['lieu_naissance'] ?? '');
+            $processor->setValue('nationalite', $data['nationalite'] ?? '');
+            $processor->setValue('profession', $data['profession'] ?? '');
+            $processor->setValue('piece', $piece ?? '');
+
+            // Pas d'image de signature pour l'avance
+            $processor->setValue('signature', '');
+
+            $processor->saveAs($tmpDocx);
+
+            $storedDir = 'previews/contracts';
+            $storedName = 'contrat_preview_' . uniqid() . '.docx';
+            $storedPath = $storedDir . '/' . $storedName;
+            Storage::disk('public')->put($storedPath, file_get_contents($tmpDocx));
+        } catch (\Throwable $e) {
+            if (is_file($tmpDocx)) { @unlink($tmpDocx); }
+            Log::error('Erreur génération preview DOCX Avance: ' . $e->getMessage());
+            return response()->json(['error' => 'Erreur lors de la génération de la preview du contrat.'], 500);
+        }
+
+        if (is_file($tmpDocx)) { @unlink($tmpDocx); }
+
+        $publicBase = $data['public_base'] ?? config('app.url');
+        $publicBase = rtrim((string) $publicBase, '/');
+        $docxRelativeUrl = '/storage/' . ltrim($storedPath, '/');
+        $docxUrl = $publicBase . $docxRelativeUrl;
+
+        $googleViewUrl = 'https://docs.google.com/gview?embedded=1&url=' . urlencode($docxUrl);
+        $officeViewUrl = 'https://view.officeapps.live.com/op/view.aspx?src=' . urlencode($docxUrl);
+
+        return response()->json([
+            'docxUrl' => $docxUrl,
+            'docxRelativeUrl' => $docxRelativeUrl,
+            'googleViewUrl' => $googleViewUrl,
+            'officeViewUrl' => $officeViewUrl,
         ]);
     }
 
@@ -77,6 +200,20 @@ class AvSalaireController extends Controller
             $avSalaire->numero_compte = $validated['numero_compte'];
             $avSalaire->montant = $validated['montant'];
             $avSalaire->status = 'en attente';
+            $avSalaire->mode_paiement = $request->mode_paiement;
+            $avSalaire->carte = $request->carte;
+            $avSalaire->civility = $request->civility;
+            $avSalaire->address = $request->address;
+            $avSalaire->city = $request->city;
+            $avSalaire->bp = $request->bp;
+            $avSalaire->employeur = $request->employeur;
+            $avSalaire->piece_identite = $request->piece_identite;
+            $avSalaire->numero_piece_identite = $request->numero_piece_identite;
+            $avSalaire->date_de_delivrance_piece_identite = $request->date_de_delivrance_piece_identite;
+            $avSalaire->date_naissance = $request->date_naissance;
+            $avSalaire->lieu_naissance = $request->lieu_naissance;
+            $avSalaire->nationalite = $request->nationalite;
+            $avSalaire->profession = $request->profession;
             $avSalaire->user_validateur_level = "charge client";
             $avSalaire->save();
 
@@ -114,6 +251,8 @@ class AvSalaireController extends Controller
 
     public function all(Request $request)
     {
+    //    dd(Auth::user()->role);
+
         $query = AvSalaire::with('pieceJointsAv')
         ->where('is_deleted', 0);
 
@@ -178,6 +317,17 @@ class AvSalaireController extends Controller
             ],
         ]);
        }
+       elseif(Auth::user()->role == "client"){
+        // dd("test");
+        return Inertia::render('client/avSalaire/AllAvSalaire', [
+            'avSalaires' => $avSalaires,
+            'filters' => $request->only(['search', 'status', 'sort_by', 'sort_order', 'per_page']),
+            'flash' => [
+                'success' => session('success'),
+                'error' => session('error'),
+            ],
+        ]);
+       }
     }
     public function edit($id)
     {
@@ -202,6 +352,11 @@ class AvSalaireController extends Controller
         elseif(Auth::user()->role == "visiteur"){
             $avSalaire = AvSalaire::with('pieceJointsAv')->findOrFail($id);
             return Inertia::render('visiteur/avSalaire/EditAvSalaire', [
+                'avSalaire' => $avSalaire,
+            ]);
+        }elseif(Auth::user()->role == "client"){
+            $avSalaire = AvSalaire::with('pieceJointsAv')->findOrFail($id);
+            return Inertia::render('client/avSalaire/EditAvSalaire', [
                 'avSalaire' => $avSalaire,
             ]);
         }
