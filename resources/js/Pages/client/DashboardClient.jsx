@@ -6,6 +6,7 @@ function DashboardClient() {
   return (
     <ClientLayout>
         <Head title="Tableau de bord" />
+        <div className="">Bienvenue dans votre espace</div>
     </ClientLayout>
   )
 }

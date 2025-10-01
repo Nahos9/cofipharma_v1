@@ -4,7 +4,7 @@ import { Badge } from '@/Components/ui/badge'
 import { Button } from '@/Components/ui/button'
 import ResponsableLayout from '@/Layouts/ResponsableLayout'
 import { Head, Link, router } from '@inertiajs/react'
-import { Download, User, Mail, Phone, CreditCard, Calendar, FileText } from 'lucide-react'
+import { Download, CheckCircle2, User, Mail, Phone, CreditCard, Calendar, FileText } from 'lucide-react'
 import Modal from '@/Components/Modal'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -92,7 +92,7 @@ const handleValidateAvSalaire = (type) => {
       <Head title={`Détail de l'avance sur salaire`} />
       <Toaster />
 
-      <div className="max-w-2xl mx-auto mt-8">
+      <div className="max-w-4xl mx-auto mt-8">
         <div className="mb-4 flex items-center gap-2">
           <Link href={route('responsable_ritel.av_salaire.all')}>
             <Button variant="outline" size="sm">&larr; Retour</Button>
@@ -149,45 +149,35 @@ const handleValidateAvSalaire = (type) => {
                 <span className="font-semibold text-green-600">{formatMontant(avSalaire.montant)}</span>
               </div>
             </div>
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-gray-700" /> Pièces jointes
-              </h3>
-              {avSalaire.piece_joints_av && avSalaire.piece_joints_av.length > 0 ? (
-                <ul className="space-y-2">
-                  {avSalaire.piece_joints_av.map((piece, idx) => {
-                    const url = piece.chemin_fichier.startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`;
-                    return (
-                      <li key={idx} className="flex items-center gap-3 bg-gray-50 rounded p-2">
-                        <span className="truncate flex-1">{piece.nom_fichier}</span>
-                        {isPreviewable(piece.type_mime) && (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button variant="secondary" size="sm" className="flex items-center gap-1">
-                              Visualiser
-                            </Button>
+            <div className="mt-6 space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-gray-700" /> Contrats
+                </h3>
+                {avSalaire.piece_joints_av && avSalaire.piece_joints_av.filter(p=>p.category==='contract').length > 0 ? (
+                  <ul className="space-y-2">
+                    {avSalaire.piece_joints_av.filter(p=>p.category==='contract').map((piece, idx) => {
+                      const url = piece.chemin_fichier.startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`;
+                      const isSigned = !!piece.is_signed;
+                      return (
+                        <li key={idx} className="flex items-center gap-3 bg-gray-50 rounded p-2">
+                          <span className="truncate flex-1">{piece.nom_fichier}</span>
+                          {isSigned ? (
+                            <span className="inline-flex items-center gap-1 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4"/> Signé</span>
+                          ) : (
+                            <span className="text-amber-600 text-sm">Non signé</span>
+                          )}
+                          <a href={url} target="_blank" rel="noopener noreferrer" download>
+                            <Button variant="outline" size="sm" className="flex items-center gap-1"><Download className="w-4 h-4" /> Télécharger</Button>
                           </a>
-                        )}
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                        >
-                          <Button variant="outline" size="sm" className="flex items-center gap-1">
-                            <Download className="w-4 h-4" /> Télécharger
-                          </Button>
-                        </a>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <div className="text-gray-500">Aucune pièce jointe</div>
-              )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <div className="text-gray-500">Aucun contrat généré</div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

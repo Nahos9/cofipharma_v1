@@ -1,1 +1,0 @@
-import{j as t,a as r}from"./app-B0hzU4lX.js";import{C as o}from"./ClientLayout-Y1U_pm3-.js";import"./Dropdown-CsSIElTE.js";import"./transition-DuVpHk1f.js";function m(){return t.jsx(o,{children:t.jsx(r,{title:"Tableau de bord"})})}export{m as default};

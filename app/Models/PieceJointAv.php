@@ -12,6 +12,9 @@ class PieceJointAv extends Model
         'nom_fichier',
         'type_mime',
         'taille_fichier',
+        'category',
+        'is_signed',
+        'signed_at',
     ];
 
     public function avSalaire()

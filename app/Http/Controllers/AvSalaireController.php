@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
+use App\Models\PieceJointAv;
 
 class AvSalaireController extends Controller
 {
@@ -221,7 +222,7 @@ class AvSalaireController extends Controller
             if ($request->hasFile('fichiers')) {
                 foreach ($request->file('fichiers') as $file) {
                     $path = $file->store('avances_salaires', 'public');
-                    \App\Models\PieceJointAv::create([
+                    PieceJointAv::create([
                         'av_salaire_id' => $avSalaire->id,
                         'chemin_fichier' => $path,
                         'nom_fichier' => $file->getClientOriginalName(),
@@ -229,6 +230,75 @@ class AvSalaireController extends Controller
                         'taille_fichier' => $file->getSize(),
                     ]);
                 }
+            }
+
+            // Génération et enregistrement du contrat DOCX associé à l'avance
+            try {
+                $templateCandidates = [
+                    resource_path('contracts/Contrat.docx'),
+                    resource_path('contracts/contrat.docx'),
+                ];
+                $templatePath = null;
+                foreach ($templateCandidates as $candidate) {
+                    if (file_exists($candidate)) { $templatePath = $candidate; break; }
+                }
+                if ($templatePath) {
+                    $processor = new TemplateProcessor($templatePath);
+                    $piece_identites = [
+                        'cni' => "Carte nationale d'identité",
+                        'passport' => 'Passport',
+                        'permis de conduire' => 'Permis de conduire',
+                        'cart_sej' => 'Carte de séjour',
+                    ];
+                    $piece = '';
+                    if (($request->input('piece_identite')) === 'cni' || ($request->input('piece_identite')) === 'cart_sej') {
+                        $piece = 'de la';
+                    } elseif (($request->input('piece_identite')) === 'passport' || ($request->input('piece_identite')) === 'permis de conduire') {
+                        $piece = 'du';
+                    }
+                    $processor->setValue('first_name', $avSalaire->prenom ?? '');
+                    $processor->setValue('last_name', $avSalaire->nom ?? '');
+                    $processor->setValue('email', $avSalaire->email ?? '');
+                    $processor->setValue('numero_compte', $avSalaire->numero_compte ?? '');
+                    $processor->setValue('montant', (string) $avSalaire->montant);
+                    $processor->setValue('phone', $avSalaire->phone ?? '');
+                    $processor->setValue('mode_paiement', $request->input('mode_paiement', ''));
+                    $processor->setValue('date', now()->format('d/m/Y'));
+                    $processor->setValue('bp', $request->input('bp', ''));
+                    $processor->setValue('employeur', $request->input('employeur', ''));
+                    $processor->setValue('civility', $request->input('civility', ''));
+                    $processor->setValue('address', $request->input('address', ''));
+                    $processor->setValue('city', $request->input('city', ''));
+                    $processor->setValue('piece_identite', $piece_identites[$request->input('piece_identite')] ?? '');
+                    $processor->setValue('numero_piece_identite', $request->input('numero_piece_identite', ''));
+                    $processor->setValue('date_de_delivrance_piece_identite', $request->input('date_de_delivrance_piece_identite', ''));
+                    $processor->setValue('date_naissance', $request->input('date_naissance', ''));
+                    $processor->setValue('lieu_naissance', $request->input('lieu_naissance', ''));
+                    $processor->setValue('nationalite', $request->input('nationalite', ''));
+                    $processor->setValue('profession', $request->input('profession', ''));
+                    $processor->setValue('piece', $piece ?? '');
+
+                    $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
+                    $processor->saveAs($tempFile);
+                    $storedDir = 'avances_salaires/contrats/' . $avSalaire->id;
+                    $storedName = 'contrat_' . $avSalaire->id . '_' . time() . '.docx';
+                    $storedPath = $storedDir . '/' . $storedName;
+                    Storage::disk('public')->put($storedPath, file_get_contents($tempFile));
+                    @unlink($tempFile);
+
+                    PieceJointAv::create([
+                        'av_salaire_id' => $avSalaire->id,
+                        'chemin_fichier' => $storedPath,
+                        'nom_fichier' => $storedName,
+                        'type_mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'taille_fichier' => Storage::disk('public')->size($storedPath),
+                        'category' => 'contract',
+                        'is_signed' => false,
+                        'signed_at' => null,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Erreur génération contrat Avance: ' . $e->getMessage());
             }
 
            try{
@@ -247,6 +317,38 @@ class AvSalaireController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Erreur lors de la soumission de la demande: ' . $e->getMessage());
         }
+    }
+
+    public function uploadSignedContract(Request $request, $id)
+    {
+        $avSalaire = AvSalaire::findOrFail($id);
+        // Empêcher l'ajout si un contrat signé existe déjà
+        $alreadySigned = PieceJointAv::where('av_salaire_id', $avSalaire->id)
+            ->where('category', 'contract')
+            ->where('is_signed', true)
+            ->exists();
+        if ($alreadySigned) {
+            return back()->with('error', 'Un contrat signé existe déjà pour cette avance.');
+        }
+        $request->validate([
+            'signed_contract' => 'required|file|mimes:pdf,doc,docx|max:10240'
+        ]);
+        $file = $request->file('signed_contract');
+        $path = $file->store('avances_salaires/contrats_signes/'.$avSalaire->id, 'public');
+
+        // Marquer les précédents contrats signés? On ajoute un nouveau en tout cas
+        $piece = PieceJointAv::create([
+            'av_salaire_id' => $avSalaire->id,
+            'chemin_fichier' => $path,
+            'nom_fichier' => $file->getClientOriginalName(),
+            'type_mime' => $file->getClientMimeType(),
+            'taille_fichier' => $file->getSize(),
+            'category' => 'contract',
+            'is_signed' => true,
+            'signed_at' => now(),
+        ]);
+
+        return back()->with('success', 'Contrat signé chargé avec succès.');
     }
 
     public function all(Request $request)

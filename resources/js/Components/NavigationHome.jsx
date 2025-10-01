@@ -102,7 +102,7 @@ const NavigationHome = ({ user }) => {
         ) : (
             <div className="flex gap-2">
                {currentUser.role == 'client' && (
-                <Link href={route('client.dashboard')}>
+                <Link href={route('client.demandes.all')}>
                     <Button>Mon espace</Button>
                 </Link>
                )}

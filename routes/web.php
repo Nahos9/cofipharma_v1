@@ -379,6 +379,7 @@ Route::middleware(['auth','verified','role:charge client'])->prefix('charge_clie
     Route::get('/av_salaire/{id}/edit',[AvSalaireController::class,'edit'])->name('av_salaire.edit');
     Route::put('/av_salaire/{id}/validate',[AvSalaireController::class,'validateAvSalaire'])->name('av_salaire.validate');
     Route::delete('/av_salaire/{id}', [AvSalaireController::class, 'destroy'])->name('av_salaire.destroy');
+    Route::post('/av_salaire/{id}/upload-signed-contract', [AvSalaireController::class, 'uploadSignedContract'])->name('av_salaire.uploadSignedContract');
 });
 
 Route::get('/contracts/preview', [DemandeController::class, 'previewContract'])->middleware('auth')->name('contracts.preview');
@@ -395,6 +396,8 @@ Route::middleware(['auth','verified','role:client'])->prefix('client')->name('cl
     Route::get('/av_salaire',[AvSalaireController::class,'all'])->name('av_salaire.all');
     Route::post('/av_salaire',[AvSalaireController::class,'store'])->name('store.av_salaire');
     Route::get('/av_salaire/{id}/edit',[AvSalaireController::class,'edit'])->name('av_salaire.edit');
+    Route::post('/av_salaire/{id}/upload-signed-contract', [AvSalaireController::class, 'uploadSignedContract'])->name('av_salaire.uploadSignedContract');
+
     // Route::put('/av_salaire/{id}/validate',[AvSalaireController::class,'validateAvSalaire'])->name('av_salaire.validate');
     // Route::delete('/av_salaire/{id}', [AvSalaireController::class, 'destroy'])->name('av_salaire.destroy');
 });
