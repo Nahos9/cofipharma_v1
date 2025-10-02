@@ -32,6 +32,9 @@ class AvSalaire extends Model
     'nationalite',
     'profession',
     'carte',
+    'mention_text',
+    'mention_accepted',
+    'mention_accepted_at',
     ];
 
     public function pieceJointsAv()

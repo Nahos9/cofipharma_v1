@@ -1,1 +1,0 @@
-import{j as r,a}from"./app-t3jM6zF_.js";import{O as e}from"./OperationLayout-C2MQMWfb.js";import"./Dropdown-FFK2l9bx.js";import"./transition-B2kppIXy.js";const d=()=>r.jsx(e,{header:"Tableau de bord",children:r.jsx(a,{title:"Tableau de bord"})});export{d as default};

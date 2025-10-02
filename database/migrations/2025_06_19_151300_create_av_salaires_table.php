@@ -34,6 +34,9 @@ return new class extends Migration
             $table->string('lieu_naissance')->nullable();
             $table->string('nationalite')->nullable();
             $table->string('profession')->nullable();
+            $table->text('mention_text')->nullable();
+            $table->boolean('mention_accepted')->default(false);
+            $table->timestamp('mention_accepted_at')->nullable();
             $table->string('status')->default('en attente');
             $table->string('carte')->nullable();
             $table->string('is_deleted')->default(false);

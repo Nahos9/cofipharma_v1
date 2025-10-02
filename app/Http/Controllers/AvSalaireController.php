@@ -215,6 +215,9 @@ class AvSalaireController extends Controller
             $avSalaire->lieu_naissance = $request->lieu_naissance;
             $avSalaire->nationalite = $request->nationalite;
             $avSalaire->profession = $request->profession;
+            $avSalaire->mention_text = $request->mention_text;
+            $avSalaire->mention_accepted = $request->mention_accepted;
+            $avSalaire->mention_accepted_at = Carbon::now();
             $avSalaire->user_validateur_level = "charge client";
             $avSalaire->save();
 

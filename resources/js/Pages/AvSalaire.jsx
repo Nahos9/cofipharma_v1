@@ -36,6 +36,9 @@ const AvSalaire = ({ auth, flash }) => {
         date_de_delivrance_piece_identite: '',
         mode_paiement: '',
         carte: '',
+        mention_text: '',
+        mention_accepted: false,
+        mention_accepted_at: '',
     })
 
     const [currentStep, setCurrentStep] = useState(1)
@@ -100,9 +103,13 @@ const AvSalaire = ({ auth, flash }) => {
 
     const handleFinalSubmit = (e) => {
         e.preventDefault()
-        if (!acceptTerms) {
+        if (!data.mention_accepted) {
             toast.error("Vous devez accepter les conditions avant de soumettre.")
             return
+        }
+        if ((data.mention_text || '').trim().toLowerCase() !== 'j’ai lu et approuvé' && (data.mention_text || '').trim().toLowerCase() !== "j'ai lu et approuvé") {
+            toast.error("Veuillez saisir exactement: 'J’ai lu et approuvé'.");
+            return;
         }
         post(route('av_salaire.store'))
     }
@@ -119,6 +126,9 @@ const AvSalaire = ({ auth, flash }) => {
             montant: data.montant || '',
             phone: data.phone || '',
             mode_paiement: '',
+            mention_text: data.mention_text || '',
+            mention_accepted: data.mention_accepted || false,
+            mention_accepted_at: data.mention_accepted_at || '',
             bp: data.bp || '',
             employeur: data.employeur || '',
             civility: data.civility || '',
@@ -131,6 +141,9 @@ const AvSalaire = ({ auth, flash }) => {
             lieu_naissance: data.lieu_naissance || '',
             nationalite: data.nationalite || '',
             profession: data.profession || '',
+            mention_text: data.mention_text || '',
+            mention_accepted: data.mention_accepted || false,
+            mention_accepted_at: data.mention_accepted_at || '',
         })
         const url = route('av_salaire.contracts.previewDocx') + `?${params.toString()}`
         fetch(url, { credentials: 'include' })
@@ -451,10 +464,10 @@ const AvSalaire = ({ auth, flash }) => {
                             <h2 className="text-lg font-semibold mb-2">Acceptation</h2>
                             <div className="mb-2">
                                 <label className="block text-sm mb-1">Mention manuscrite (taper la mention)</label>
-                                <textarea value={acceptanceText} onChange={(e)=> setAcceptanceText(e.target.value)} className="w-full border rounded-md p-2" rows={3} placeholder="Lu et approuvé..." />
+                                <textarea value={data.mention_text} onChange={(e)=> setData('mention_text', e.target.value)} className="w-full border rounded-md p-2" rows={3} placeholder="Lu et approuvé..." />
                             </div>
                             <div className="flex items-center gap-2">
-                                <input id="acceptTerms" type="checkbox" checked={acceptTerms} onChange={(e)=> setAcceptTerms(e.target.checked)} />
+                                <input id="acceptTerms" type="checkbox" checked={data.mention_accepted} onChange={(e)=> setData('mention_accepted', e.target.checked)} />
                                 <label htmlFor="acceptTerms">J'ai lu et j'accepte les termes du contrat</label>
                             </div>
                         </div>
