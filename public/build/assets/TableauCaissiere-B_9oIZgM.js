@@ -1,0 +1,1 @@
+import{j as r}from"./app-IlUcRzel.js";import{C as e}from"./CaissiereLayout-zPW_6w5c.js";import"./Dropdown-DFmBP1VB.js";import"./transition-PuZaeOir.js";const i=()=>r.jsx(e,{header:"Tableau de bord"});export{i as default};

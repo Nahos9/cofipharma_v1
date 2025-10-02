@@ -182,7 +182,7 @@ const EditAvSalaire = ({ avSalaire }) => {
                   if (!input || !input.files || input.files.length===0) return;
                   const fd = new FormData();
                   fd.append('signed_contract', input.files[0]);
-                  router.post(route('charge_client.av_salaire.uploadSignedContract', avSalaire.id), fd, { forceFormData: true });
+                  router.post(route('client.av_salaire.uploadSignedContract', avSalaire.id), fd, { forceFormData: true });
                 }} className="flex items-center gap-2">
                   <input type="file" accept=".pdf,.doc,.docx" className="flex-1 text-sm" disabled={(avSalaire.piece_joints_av||[]).some(p=>p.category==='contract' && p.is_signed)} />
                   <Button type="submit" className="flex items-center gap-1" disabled={(avSalaire.piece_joints_av||[]).some(p=>p.category==='contract' && p.is_signed)}><Upload className="w-4 h-4"/> Charger</Button>
