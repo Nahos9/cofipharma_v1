@@ -61,7 +61,7 @@ class AvSalaireController extends Controller
 
         $templateCandidates = [
             resource_path('contracts/Contrat.docx'),
-            resource_path('contracts/contrat.docx'),
+            resource_path('contracts/Contrat.docx'),
         ];
         $templatePath = null;
         foreach ($templateCandidates as $candidate) {
@@ -239,7 +239,7 @@ class AvSalaireController extends Controller
             try {
                 $templateCandidates = [
                     resource_path('contracts/Contrat.docx'),
-                    resource_path('contracts/contrat.docx'),
+                    resource_path('contracts/Contrat.docx'),
                 ];
                 $templatePath = null;
                 foreach ($templateCandidates as $candidate) {
