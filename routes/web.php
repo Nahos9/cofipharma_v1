@@ -382,10 +382,12 @@ Route::middleware(['auth','verified','role:charge client'])->prefix('charge_clie
     Route::post('/av_salaire/{id}/upload-signed-contract', [AvSalaireController::class, 'uploadSignedContract'])->name('av_salaire.uploadSignedContract');
 });
 
-Route::get('/contracts/preview', [DemandeController::class, 'previewContract'])->middleware('auth')->name('contracts.preview');
-Route::get('/contracts/preview-docx', [DemandeController::class, 'previewContractDocx'])->middleware('auth')->name('contracts.previewDocx');
-Route::get('/av_salaire/contracts/preview-docx', [AvSalaireController::class, 'previewContractDocx'])->middleware('auth')->name('av_salaire.contracts.previewDocx');
-Route::post('/contracts/preview-signature', [DemandeController::class, 'previewSignatureUpload'])->middleware('auth')->name('contracts.previewSignatureUpload');
+Route::get('/contracts/preview', [DemandeController::class, 'previewContract'])->name('contracts.preview');
+Route::get('/contracts/preview-docx', [DemandeController::class, 'previewContractDocx'])->name('contracts.previewDocx');
+Route::get('/av_salaire/contracts/preview-docx', [AvSalaireController::class, 'previewContractDocx'])->name('av_salaire.contracts.previewDocx');
+Route::post('/contracts/preview-signature', [DemandeController::class, 'previewSignatureUpload'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('contracts.previewSignatureUpload');
 
 Route::middleware(['auth','verified','role:client'])->prefix('client')->name('client.')->group(function(){
     Route::get('/dashboard', function () {

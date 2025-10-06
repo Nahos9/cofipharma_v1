@@ -157,6 +157,7 @@ class DemandeController extends Controller
             'nationalite' => $request->nationalite,
             'profession' => $request->profession,
             'employeur' => $request->employeur,
+            'numero_carte' => $request->carte,
             'user_id' => Auth::user()->id,
             // Acceptation
             'mention_text' => $request->mention_text,
@@ -231,8 +232,22 @@ class DemandeController extends Controller
                 $template->setValue('employeur', $demande->employeur ?? '');
                 $template->setValue('piece', $piece ?? '');
 
-                // Ne plus insérer d'image de signature dans le contrat
-                $template->setValue('signature', '');
+                // Insérer l'image de signature si disponible
+                if (!empty($sigPath)) {
+                    $absoluteSigPath = storage_path('app/public/' . ltrim($sigPath, '/'));
+                    if (file_exists($absoluteSigPath)) {
+                        $template->setImageValue('signature', [
+                            'path' => $absoluteSigPath,
+                            'width' => 200,
+                            'height' => 80,
+                            'ratio' => true,
+                        ]);
+                    } else {
+                        $template->setValue('signature', '');
+                    }
+                } else {
+                    $template->setValue('signature', '');
+                }
 
 
                 $contractDir = 'contrats/' . $demande->id;

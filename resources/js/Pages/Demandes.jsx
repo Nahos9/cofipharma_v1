@@ -84,10 +84,21 @@ const Demande = () => {
                     const blob = new Blob([ab], { type: mimeString });
                     const fd = new FormData();
                     fd.append('signature', blob, 'preview-signature.png');
-                    const uploadRes = await fetch(route('contracts.previewSignatureUpload'), {
+					const csrfToken = (document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')) || (window.Laravel?.csrfToken) || '';
+					const getCookie = (name) => {
+						const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+						return match ? decodeURIComponent(match[1]) : '';
+					};
+					const xsrfFromCookie = getCookie('XSRF-TOKEN');
+					const uploadRes = await fetch(route('contracts.previewSignatureUpload'), {
                         method: 'POST',
                         body: fd,
-                        headers: { 'Accept': 'application/json' },
+						headers: {
+							'Accept': 'application/json',
+							'X-Requested-With': 'XMLHttpRequest',
+							'X-CSRF-TOKEN': csrfToken || xsrfFromCookie,
+							'X-XSRF-TOKEN': xsrfFromCookie
+						},
                         credentials: 'same-origin'
                     });
                     if (uploadRes.ok) {
@@ -144,9 +155,17 @@ const Demande = () => {
 				return;
 			}
 		}
-		const next = Math.min(4, currentStep + 1);
+		// Étape 3 (Signature) doit avoir une signature avant de continuer
+		if (currentStep === 3) {
+			if (!signatureDataUrl) {
+				toast.warn('Veuillez signer avant de continuer.');
+				return;
+			}
+		}
+		const next = Math.min(5, currentStep + 1);
 		setCurrentStep(next);
-		if (next === 3) {
+		// Déclenche la génération de l'aperçu du contrat à l'étape 4
+		if (next === 4) {
 			await fetchContractPreviewDocx();
 		}
 	};
@@ -231,8 +250,8 @@ const Demande = () => {
 
 	const handleFinalSubmit = (e) => {
 		e.preventDefault();
-		// Validations étape 4: acceptation
-		if (currentStep === 4) {
+		// Validations étape 5: acceptation
+		if (currentStep === 5) {
 			if (!acceptTerms) {
 				toast.warn('Veuillez cocher la case d\'acceptation.');
 				return;
@@ -271,7 +290,22 @@ const Demande = () => {
 			formData.append(`files[${index}]`, file);
 		});
 
-		// suppression de l'envoi de signature selon la nouvelle exigence
+		// Ajout: envoi de la signature pour stockage serveur
+		try {
+			if (signatureDataUrl) {
+				const byteString = atob(signatureDataUrl.split(',')[1]);
+				const mimeString = signatureDataUrl.split(',')[0].split(':')[1].split(';')[0];
+				const ab = new ArrayBuffer(byteString.length);
+				const ia = new Uint8Array(ab);
+				for (let i = 0; i < byteString.length; i++) {
+					ia[i] = byteString.charCodeAt(i);
+				}
+				const blob = new Blob([ab], { type: mimeString || 'image/png' });
+				formData.append('signature', blob, 'signature.png');
+			}
+		} catch (err) {
+			// si la conversion échoue, on n'interrompt pas la soumission
+		}
 
 		router.post(route('demandes.store'), formData, {
 			forceFormData: true,
@@ -317,11 +351,11 @@ const Demande = () => {
 		});
 	};
 
-	const progressPercent = currentStep === 1 ? 25 : currentStep === 2 ? 50 : currentStep === 3 ? 75 : 100;
+	const progressPercent = currentStep === 1 ? 20 : currentStep === 2 ? 40 : currentStep === 3 ? 60 : currentStep === 4 ? 80 : 100;
 
 	useEffect(() => {
 		const renderDocx = async () => {
-			if (currentStep !== 3 || (!docxRelativeUrl && !docxUrl) || !docxContainerRef.current) return;
+			if (currentStep !== 4 || (!docxRelativeUrl && !docxUrl) || !docxContainerRef.current) return;
 			try {
 				const href = docxRelativeUrl || docxUrl;
 				const resp = await fetch(href, { credentials: 'same-origin' });
@@ -369,12 +403,13 @@ const Demande = () => {
 			<div className="flex justify-between text-xs text-gray-600 mt-2">
 				<span>Étape 1: Formulaire</span>
 				<span>Étape 2: Récapitulatif</span>
-				<span>Étape 3: Contrat</span>
-				<span>Étape 4: Acceptation</span>
+				<span>Étape 3: Signature</span>
+				<span>Étape 4: Contrat</span>
+				<span>Étape 5: Acceptation</span>
 			</div>
 				</div>
 
-				<form className="bg-white shadow-md rounded-lg px-4 sm:px-8 pt-6 pb-8 mb-4" onSubmit={currentStep === 4 ? handleFinalSubmit : goNext}>
+				<form className="bg-white shadow-md rounded-lg px-4 sm:px-8 pt-6 pb-8 mb-4" onSubmit={currentStep === 5 ? handleFinalSubmit : goNext}>
 					{currentStep === 1 && (
 						<>
                             <div className="mb-4 ">
@@ -767,9 +802,49 @@ const Demande = () => {
 						</div>
 					)}
 
-			{currentStep === 3 && (
+				{currentStep === 3 && (
+					<div className="space-y-4">
+						<h2 className="text-lg font-semibold text-gray-800">Signature</h2>
+						<div className="bg-gray-50 rounded border border-gray-200 p-4">
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+								<div className="md:col-span-2">
+									<div className="border rounded bg-white">
+										<canvas
+											ref={canvasRef}
+											className="w-full h-48 touch-none"
+											onMouseDown={handleStartDraw}
+											onMouseMove={handleMoveDraw}
+											onMouseUp={handleEndDraw}
+											onMouseLeave={handleEndDraw}
+											onTouchStart={handleStartDraw}
+											onTouchMove={handleMoveDraw}
+											onTouchEnd={handleEndDraw}
+										/>
+									</div>
+									<div className="mt-2 flex gap-2">
+										<button type="button" className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={clearSignature}>Effacer</button>
+										<button type="button" className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onClick={saveSignature}>Enregistrer la signature</button>
+									</div>
+								</div>
+								<div>
+									<p className="text-sm text-gray-600 mb-2">Aperçu</p>
+									<div className="border rounded bg-white flex items-center justify-center h-48">
+										{signatureDataUrl ? (
+											<img src={signatureDataUrl} alt="Signature" className="max-h-44 object-contain" />
+										) : (
+											<span className="text-xs text-gray-400">Aucune signature enregistrée</span>
+										)}
+									</div>
+								</div>
+							</div>
+							<p className="text-xs text-gray-500">Signez dans l'encadré ci-dessus. Utilisez votre souris ou votre doigt (mobile).</p>
+						</div>
+					</div>
+				)}
+
+				{currentStep === 4 && (
 				<div className="space-y-4">
-					<h2 className="text-lg font-semibold text-gray-800">Aperçu du contrat</h2>
+						<h2 className="text-lg font-semibold text-gray-800">Aperçu du contrat</h2>
 					<div className="bg-gray-50 rounded border border-gray-200 p-2">
 						<div className="relative w-full" style={{ minHeight: '40vh' }}>
 							{!useIframePreview && (
@@ -788,9 +863,9 @@ const Demande = () => {
 						</div>
 					</div>
 				</div>
-			)}
+				)}
 
-			{currentStep === 4 && (
+				{currentStep === 5 && (
 				<div className="space-y-4">
 					<h2 className="text-lg font-semibold text-gray-800">Acceptation</h2>
 					<div className="bg-gray-50 rounded border border-gray-200 p-4 text-sm text-gray-700 leading-relaxed max-h-56 overflow-auto">
@@ -816,12 +891,12 @@ const Demande = () => {
 						</div>
 					</div>
 
-					{/* Signature supprimée selon nouvelle exigence */}
+						{/* Signature gérée à l'étape 3 */}
 				</div>
-			)}
+				)}
 
 					<div className="flex items-center justify-between mt-6">
-						<button
+					<button
 							type="button"
 							className={`px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 ${currentStep === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
 							onClick={(e)=>{e.preventDefault(); setCurrentStep(s => Math.max(1, s - 1));}}
@@ -830,12 +905,12 @@ const Demande = () => {
 							Étape précédente
 						</button>
 
-						<button
-							className={`px-4 py-2 rounded text-white ${currentStep === 4 ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-500 hover:bg-blue-700'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
-							type="submit"
+					<button
+							className={`px-4 py-2 rounded text-white ${currentStep === 5 ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-500 hover:bg-blue-700'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+						type="submit"
 							disabled={processing}
 						>
-							{processing ? 'Traitement...' : currentStep === 4 ? 'Soumettre la demande' : 'Continuer'}
+						{processing ? 'Traitement...' : currentStep === 5 ? 'Soumettre la demande' : 'Continuer'}
 						</button>
 					</div>
 				</form>

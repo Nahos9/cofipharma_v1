@@ -305,105 +305,54 @@ const EditDemande = ({demande}) => {
                                 </dl>
                             </div>
 
-                            <div className="mt-8">
-                                <h3 className="text-lg font-medium leading-6 text-gray-900">Contrat signé</h3>
-                                <div className="mt-5">
-                                    {demande.piece_jointes && demande.piece_jointes.filter(p => p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`)).length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                            {demande.piece_jointes.filter(p => p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`)).map((piece) => (
-                                                <div key={piece.id} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
-                                                    <div className="flex-shrink-0">
-                                                        {getFileIcon(piece.type_mime)}
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-medium text-gray-900 truncate">
-                                                            {piece.nom_fichier}
-                                                        </p>
-                                                        <p className="text-sm text-gray-500">
-                                                            {formatFileSize(piece.taille_fichier)}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex-shrink-0">
-                                                        <a
-                                                            href={`/storage/${piece.chemin_fichier}`}
-                                                            download={piece.nom_fichier}
-                                                            className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                                                        >
-                                                            <Download className="h-4 w-4 mr-1" />
-                                                            Télécharger
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-4">
-                                            <p className="text-gray-500">Aucun contrat signé</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+
 
                             <div className="mt-8">
                                 <h3 className="text-lg font-medium leading-6 text-gray-900">Autres pièces jointes</h3>
-                                <div className="mt-5">
-                                    {demande.piece_jointes && demande.piece_jointes.filter(p => !p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`)).length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                            {demande.piece_jointes.filter(p => !p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`)).map((piece) => (
-                                                <div key={piece.id} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
-                                                    <div className="flex-shrink-0">
-                                                        {getFileIcon(piece.type_mime)}
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-medium text-gray-900 truncate">
-                                                            {piece.nom_fichier}
-                                                        </p>
-                                                        <p className="text-sm text-gray-500">
-                                                            {formatFileSize(piece.taille_fichier)}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex-shrink-0">
-                                                        <a
-                                                            href={`/storage/${piece.chemin_fichier}`}
-                                                            download={piece.nom_fichier}
-                                                            className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                                                        >
-                                                            <Download className="h-4 w-4 mr-1" />
-                                                            Télécharger
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-4">
-                                            <p className="text-gray-500">Aucune pièce jointe disponible</p>
-                                        </div>
-                                    )}
+                              {demande.status == "debloque" ? (
+                                  <div className="mt-5">
+                                  {demande.piece_jointes && demande.piece_jointes.filter(p => !p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`) && !(p.nom_fichier || '').startsWith('signature_')).length > 0 ? (
+                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                          {demande.piece_jointes.filter(p => !p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`) && !(p.nom_fichier || '').startsWith('signature_')).map((piece) => (
+                                              <div key={piece.id} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
+                                                  <div className="flex-shrink-0">
+                                                      {getFileIcon(piece.type_mime)}
+                                                  </div>
+                                                  <div className="min-w-0 flex-1">
+                                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                                          {piece.nom_fichier}
+                                                      </p>
+                                                      <p className="text-sm text-gray-500">
+                                                          {formatFileSize(piece.taille_fichier)}
+                                                      </p>
+                                                  </div>
+                                                  <div className="flex-shrink-0">
+                                                      <a
+                                                          href={`/storage/${piece.chemin_fichier}`}
+                                                          download={piece.nom_fichier}
+                                                          className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                                      >
+                                                          <Download className="h-4 w-4 mr-1" />
+                                                          Télécharger
+                                                      </a>
+                                                  </div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  ) : (
+                                      <div className="text-center py-4">
+                                          <p className="text-gray-500">Aucune pièce jointe disponible</p>
+                                      </div>
+                                  )}
+                              </div>
+                              ):(
+                                <div>
+                                    <p className="text-gray-500">Votre contrat est en attente de signature.</p>
                                 </div>
+                              )}
                             </div>
 
-                            {!(demande.piece_jointes && demande.piece_jointes.some(p => p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`))) && (
-                            <div className="mt-8">
-                                <h3 className="text-lg font-medium leading-6 text-gray-900">Téléverser le contrat signé</h3>
-                                <div className="mt-4 flex items-center space-x-3">
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                        onChange={handleSignedContractChange}
-                                        className="block w-full text-sm text-gray-900 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleUploadSignedContract}
-                                        className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                                    >
-                                        Envoyer
-                                    </button>
-                                </div>
-                                <p className="mt-2 text-xs text-gray-500">Formats acceptés: PDF, DOC, DOCX. Taille max 10 Mo.</p>
-                            </div>
-                            )}
+
                         </div>
                     </div>
                 </div>

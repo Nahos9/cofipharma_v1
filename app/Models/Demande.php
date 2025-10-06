@@ -32,6 +32,7 @@ class Demande extends Model
        'nationalite',
        'profession',
        'employeur',
+       'numero_carte',
        'dure',
        'date_de_delivrance_piece_identite',
        'user_id',
