@@ -133,6 +133,7 @@ class DemandeController extends Controller
 
         // Création de la demande
         // dd($request->all());
+        // dd($request->all(["carte"]));
         $demande = Demande::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,

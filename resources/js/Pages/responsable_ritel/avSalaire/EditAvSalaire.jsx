@@ -162,11 +162,11 @@ const handleValidateAvSalaire = (type) => {
                       return (
                         <li key={idx} className="flex items-center gap-3 bg-gray-50 rounded p-2">
                           <span className="truncate flex-1">{piece.nom_fichier}</span>
-                          {isSigned ? (
+                          {/* {isSigned ? (
                             <span className="inline-flex items-center gap-1 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4"/> Signé</span>
                           ) : (
                             <span className="text-amber-600 text-sm">Non signé</span>
-                          )}
+                          )} */}
                           <a href={url} target="_blank" rel="noopener noreferrer" download>
                             <Button variant="outline" size="sm" className="flex items-center gap-1"><Download className="w-4 h-4" /> Télécharger</Button>
                           </a>

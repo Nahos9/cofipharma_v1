@@ -281,6 +281,7 @@ const Demande = () => {
 		formData.append('profession', data.profession);
 		formData.append('employeur', data.employeur);
         formData.append('dure', "1");
+        formData.append('carte', data.carte);
         formData.append('date_de_delivrance_piece_identite', data.date_de_delivrance_piece_identite);
 		// Champs d'acceptation
 		formData.append('mention_text', acceptanceText);
@@ -333,6 +334,7 @@ const Demande = () => {
                     profession: "",
                     employeur: "",
                     dure: "",
+                    carte: "",
                     date_de_delivrance_piece_identite: "",
                     signature: "",
 					files: []

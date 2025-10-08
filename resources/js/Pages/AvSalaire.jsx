@@ -44,6 +44,10 @@ const AvSalaire = ({ auth, flash }) => {
     const [currentStep, setCurrentStep] = useState(1)
     const [acceptanceText, setAcceptanceText] = useState('')
     const [acceptTerms, setAcceptTerms] = useState(false)
+    const [signatureDataUrl, setSignatureDataUrl] = useState(null)
+    const canvasRef = useRef(null)
+    const isDrawingRef = useRef(false)
+    const lastPointRef = useRef({ x: 0, y: 0 })
     const [officeViewUrl, setOfficeViewUrl] = useState('')
     const [googleViewUrl, setGoogleViewUrl] = useState('')
     const [docxUrl, setDocxUrl] = useState('')
@@ -76,7 +80,7 @@ const AvSalaire = ({ auth, flash }) => {
         }
     }, [flash]);
 
-    const progressPercent = currentStep === 1 ? 25 : currentStep === 2 ? 50 : currentStep === 3 ? 75 : 100
+    const progressPercent = currentStep === 1 ? 20 : currentStep === 2 ? 40 : currentStep === 3 ? 60 : currentStep === 4 ? 80 : 100
 
     const canProceedStep1 = () => {
         return (
@@ -84,7 +88,7 @@ const AvSalaire = ({ auth, flash }) => {
         )
     }
 
-    const goNext = (e) => {
+    const goNext = async (e) => {
         e.preventDefault()
         if (currentStep === 1) {
             if (!canProceedStep1()) {
@@ -92,8 +96,15 @@ const AvSalaire = ({ auth, flash }) => {
                 return
             }
         }
-        if (currentStep === 4) return
-        setCurrentStep(s => Math.min(4, s + 1))
+        if (currentStep === 3) {
+            if (!signatureDataUrl) {
+                toast.error('Veuillez signer avant de continuer.')
+                return
+            }
+        }
+        if (currentStep === 5) return
+        const next = Math.min(5, currentStep + 1)
+        setCurrentStep(next)
     }
 
     const goPrev = (e) => {
@@ -111,70 +122,230 @@ const AvSalaire = ({ auth, flash }) => {
             toast.error("Veuillez saisir exactement: 'J’ai lu et approuvé'.");
             return;
         }
-        post(route('av_salaire.store'))
+        try {
+            const formData = new FormData()
+            // Champs principaux
+            formData.append('numero_compte', data.numero_compte || '')
+            formData.append('phone', data.phone || '')
+            formData.append('email', data.email || '')
+            formData.append('nom', data.nom || '')
+            formData.append('prenom', data.prenom || '')
+            formData.append('status', data.status || '')
+            formData.append('montant', data.montant || '')
+            // Complémentaires
+            formData.append('civility', data.civility || '')
+            formData.append('address', data.address || '')
+            formData.append('city', data.city || '')
+            formData.append('bp', data.bp || '')
+            formData.append('piece_identite', data.piece_identite || '')
+            formData.append('numero_piece_identite', data.numero_piece_identite || '')
+            formData.append('date_naissance', data.date_naissance || '')
+            formData.append('lieu_naissance', data.lieu_naissance || '')
+            formData.append('nationalite', data.nationalite || '')
+            formData.append('profession', data.profession || '')
+            formData.append('employeur', data.employeur || '')
+            formData.append('date_de_delivrance_piece_identite', data.date_de_delivrance_piece_identite || '')
+            formData.append('mode_paiement', data.mode_paiement || '')
+            formData.append('carte', data.carte || '')
+            // Acceptation
+            formData.append('mention_text', data.mention_text || '')
+            formData.append('mention_accepted', data.mention_accepted ? '1' : '0')
+            formData.append('mention_accepted_at', data.mention_accepted_at || '')
+            // Fichiers
+            if (data.fichiers && data.fichiers.length) {
+                Array.from(data.fichiers).forEach((file, idx) => {
+                    formData.append(`fichiers[${idx}]`, file)
+                })
+            }
+            // Signature
+            if (signatureDataUrl) {
+                try {
+                    const byteString = atob(signatureDataUrl.split(',')[1])
+                    const mimeString = signatureDataUrl.split(',')[0].split(':')[1].split(';')[0]
+                    const ab = new ArrayBuffer(byteString.length)
+                    const ia = new Uint8Array(ab)
+                    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
+                    const blob = new Blob([ab], { type: mimeString || 'image/png' })
+                    formData.append('signature', blob, 'signature.png')
+                } catch (err) {
+                    // ignore si conversion échoue
+                }
+            }
+            router.post(route('av_salaire.store'), formData, { forceFormData: true })
+        } catch (err) {
+            post(route('av_salaire.store'))
+        }
+    }
+
+    const initCanvas = () => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const dpr = window.devicePixelRatio || 1
+        const rect = canvas.getBoundingClientRect()
+        canvas.width = rect.width * dpr
+        canvas.height = rect.height * dpr
+        const ctx = canvas.getContext('2d')
+        ctx.scale(dpr, dpr)
+        ctx.lineWidth = 2
+        ctx.lineCap = 'round'
+        ctx.strokeStyle = '#111827'
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, rect.width, rect.height)
     }
 
     useEffect(() => {
-        if (currentStep !== 3) return
-        setPreviewError('')
-        const params = new URLSearchParams({
-            // On réutilise l’endpoint de preview DOCX des Demandes pour générer un contrat
-            first_name: data.prenom || '',
-            last_name: data.nom || '',
-            email: data.email || '',
-            numero_compte: data.numero_compte || '',
-            montant: data.montant || '',
-            phone: data.phone || '',
-            mode_paiement: '',
-            mention_text: data.mention_text || '',
-            mention_accepted: data.mention_accepted || false,
-            mention_accepted_at: data.mention_accepted_at || '',
-            bp: data.bp || '',
-            employeur: data.employeur || '',
-            civility: data.civility || '',
-            address: data.address || '',
-            city: data.city || '',
-            piece_identite: data.piece_identite || '',
-            numero_piece_identite: data.numero_piece_identite || '',
-            date_de_delivrance_piece_identite: data.date_de_delivrance_piece_identite || '',
-            date_naissance: data.date_naissance || '',
-            lieu_naissance: data.lieu_naissance || '',
-            nationalite: data.nationalite || '',
-            profession: data.profession || '',
-            mention_text: data.mention_text || '',
-            mention_accepted: data.mention_accepted || false,
-            mention_accepted_at: data.mention_accepted_at || '',
-        })
-        const url = route('av_salaire.contracts.previewDocx') + `?${params.toString()}`
-        fetch(url, { credentials: 'include' })
-            .then(async (res) => {
-                const json = await res.json().catch(() => null)
-                if (!res.ok) {
-                    const msg = (json && (json.error || json.message)) || 'Preview contrat indisponible'
-                    throw new Error(msg)
+        initCanvas()
+        const onResize = () => initCanvas()
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
+    }, [])
+
+    const getPos = (canvas, e) => {
+        const rect = canvas.getBoundingClientRect()
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY
+        return { x: clientX - rect.left, y: clientY - rect.top }
+    }
+
+    const handleStartDraw = (e) => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        isDrawingRef.current = true
+        lastPointRef.current = getPos(canvas, e)
+    }
+
+    const handleMoveDraw = (e) => {
+        const canvas = canvasRef.current
+        if (!canvas || !isDrawingRef.current) return
+        const ctx = canvas.getContext('2d')
+        const { x, y } = getPos(canvas, e)
+        ctx.beginPath()
+        ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y)
+        ctx.lineTo(x, y)
+        ctx.stroke()
+        lastPointRef.current = { x, y }
+        e.preventDefault()
+    }
+
+    const handleEndDraw = () => {
+        isDrawingRef.current = false
+    }
+
+    const clearSignature = () => {
+        initCanvas()
+        setSignatureDataUrl(null)
+    }
+
+    const saveSignature = () => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const dataUrl = canvas.toDataURL('image/png')
+        if (!dataUrl) {
+            toast.error('Veuillez ajouter une signature.')
+            return
+        }
+        setSignatureDataUrl(dataUrl)
+        toast.success('Signature enregistrée.')
+    }
+
+    useEffect(() => {
+        const fetchPreview = async () => {
+            if (currentStep !== 4) return
+            setPreviewError('')
+            let signatureRelativePath = ''
+            try {
+                if (signatureDataUrl) {
+                    const byteString = atob(signatureDataUrl.split(',')[1])
+                    const mimeString = signatureDataUrl.split(',')[0].split(':')[1].split(';')[0]
+                    const ab = new ArrayBuffer(byteString.length)
+                    const ia = new Uint8Array(ab)
+                    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
+                    const blob = new Blob([ab], { type: mimeString || 'image/png' })
+                    const fd = new FormData()
+                    fd.append('signature', blob, 'preview-signature.png')
+                    const csrfToken = (document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')) || (window.Laravel?.csrfToken) || ''
+                    const getCookie = (name) => {
+                        const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'))
+                        return match ? decodeURIComponent(match[1]) : ''
+                    }
+                    const xsrfFromCookie = getCookie('XSRF-TOKEN')
+                    const uploadRes = await fetch(route('contracts.previewSignatureUpload'), {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken || xsrfFromCookie,
+                            'X-XSRF-TOKEN': xsrfFromCookie
+                        },
+                        credentials: 'same-origin'
+                    })
+                    if (uploadRes.ok) {
+                        const up = await uploadRes.json()
+                        signatureRelativePath = up.signature_relative_path || ''
+                    }
                 }
-                return json
+            } catch (_) {
+                // ignore upload preview errors
+            }
+
+            const params = new URLSearchParams({
+                first_name: data.prenom || '',
+                last_name: data.nom || '',
+                email: data.email || '',
+                numero_compte: data.numero_compte || '',
+                montant: data.montant || '',
+                phone: data.phone || '',
+                mode_paiement: data.mode_paiement || '',
+                mention_text: data.mention_text || '',
+                mention_accepted: data.mention_accepted || false,
+                mention_accepted_at: data.mention_accepted_at || '',
+                bp: data.bp || '',
+                employeur: data.employeur || '',
+                civility: data.civility || '',
+                address: data.address || '',
+                city: data.city || '',
+                piece_identite: data.piece_identite || '',
+                numero_piece_identite: data.numero_piece_identite || '',
+                date_de_delivrance_piece_identite: data.date_de_delivrance_piece_identite || '',
+                date_naissance: data.date_naissance || '',
+                lieu_naissance: data.lieu_naissance || '',
+                nationalite: data.nationalite || '',
+                profession: data.profession || '',
+                signature_relative_path: signatureRelativePath || ''
             })
-            .then((json) => {
-                setOfficeViewUrl(json.officeViewUrl || json.office_view_url || '')
-                setGoogleViewUrl(json.googleViewUrl || json.google_view_url || '')
-                setDocxUrl(json.docxUrl || json.docx_url || '')
-                setDocxRelativeUrl(json.docxRelativeUrl || json.docx_relative_url || '')
-                setUseIframePreview(false)
-            })
-            .catch((err) => {
-                setPreviewError(err?.message || 'Preview contrat indisponible')
-                setOfficeViewUrl('')
-                setGoogleViewUrl('')
-                setDocxUrl('')
-                setDocxRelativeUrl('')
-                setUseIframePreview(true)
-            })
-    }, [currentStep, data])
+            const url = route('av_salaire.contracts.previewDocx') + `?${params.toString()}`
+            fetch(url, { credentials: 'include' })
+                .then(async (res) => {
+                    const json = await res.json().catch(() => null)
+                    if (!res.ok) {
+                        const msg = (json && (json.error || json.message)) || 'Preview contrat indisponible'
+                        throw new Error(msg)
+                    }
+                    return json
+                })
+                .then((json) => {
+                    setOfficeViewUrl(json.officeViewUrl || json.office_view_url || '')
+                    setGoogleViewUrl(json.googleViewUrl || json.google_view_url || '')
+                    setDocxUrl(json.docxUrl || json.docx_url || '')
+                    setDocxRelativeUrl(json.docxRelativeUrl || json.docx_relative_url || '')
+                    setUseIframePreview(false)
+                })
+                .catch((err) => {
+                    setPreviewError(err?.message || 'Preview contrat indisponible')
+                    setOfficeViewUrl('')
+                    setGoogleViewUrl('')
+                    setDocxUrl('')
+                    setDocxRelativeUrl('')
+                    setUseIframePreview(true)
+                })
+        }
+        fetchPreview()
+    }, [currentStep, data, signatureDataUrl])
 
     useEffect(() => {
         const renderDocx = async () => {
-            if (currentStep !== 3) return
+            if (currentStep !== 4) return
             if (!docxRelativeUrl && !docxUrl) return
             if (!docxContainerRef.current) return
             try {
@@ -221,12 +392,13 @@ const AvSalaire = ({ auth, flash }) => {
                     <div className="flex justify-between text-xs text-gray-600 mt-2">
                         <span>Étape 1: Formulaire</span>
                         <span>Étape 2: Récapitulatif</span>
-                        <span>Étape 3: Contrat</span>
-                        <span>Étape 4: Acceptation</span>
+                        <span>Étape 3: Signature</span>
+                        <span>Étape 4: Contrat</span>
+                        <span>Étape 5: Acceptation</span>
                     </div>
                 </div>
 
-                <form onSubmit={currentStep === 4 ? handleFinalSubmit : goNext} className='border p-2 shadow-lg'>
+                <form onSubmit={currentStep === 5 ? handleFinalSubmit : goNext} className='border p-2 shadow-lg'>
                     {currentStep === 1 && (
                         <div>
                             <div className="mb-2">
@@ -427,6 +599,46 @@ const AvSalaire = ({ auth, flash }) => {
                     )}
 
                     {currentStep === 3 && (
+                        <div className="space-y-4">
+                            <h2 className="text-lg font-semibold text-gray-800">Signature</h2>
+                            <div className="bg-gray-50 rounded border border-gray-200 p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                                    <div className="md:col-span-2">
+                                        <div className="border rounded bg-white">
+                                            <canvas
+                                                ref={canvasRef}
+                                                className="w-full h-48 touch-none"
+                                                onMouseDown={handleStartDraw}
+                                                onMouseMove={handleMoveDraw}
+                                                onMouseUp={handleEndDraw}
+                                                onMouseLeave={handleEndDraw}
+                                                onTouchStart={handleStartDraw}
+                                                onTouchMove={handleMoveDraw}
+                                                onTouchEnd={handleEndDraw}
+                                            />
+                                        </div>
+                                        <div className="mt-2 flex gap-2">
+                                            <button type="button" className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" onClick={clearSignature}>Effacer</button>
+                                            <button type="button" className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onClick={saveSignature}>Enregistrer la signature</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-600 mb-2">Aperçu</p>
+                                        <div className="border rounded bg-white flex items-center justify-center h-48">
+                                            {signatureDataUrl ? (
+                                                <img src={signatureDataUrl} alt="Signature" className="max-h-44 object-contain" />
+                                            ) : (
+                                                <span className="text-xs text-gray-400">Aucune signature enregistrée</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500">Signez dans l'encadré ci-dessus. Utilisez votre souris ou votre doigt (mobile).</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 4 && (
                         <div>
                             <h2 className="text-lg font-semibold mb-2">Contrat</h2>
                             <div className="bg-gray-50 rounded border border-gray-200 p-2">
@@ -459,12 +671,12 @@ const AvSalaire = ({ auth, flash }) => {
                         </div>
                     )}
 
-                    {currentStep === 4 && (
+                    {currentStep === 5 && (
                         <div>
                             <h2 className="text-lg font-semibold mb-2">Acceptation</h2>
                             <div className="mb-2">
                                 <label className="block text-sm mb-1">Mention manuscrite (taper la mention)</label>
-                                <textarea value={data.mention_text} onChange={(e)=> setData('mention_text', e.target.value)} className="w-full border rounded-md p-2" rows={3} placeholder="Lu et approuvé..." />
+                                <textarea value={data.mention_text} onChange={(e)=> setData('mention_text', e.target.value)} className="w-full border rounded-md p-2" rows={3} placeholder="J'ai lu et approuvé..." />
                             </div>
                             <div className="flex items-center gap-2">
                                 <input id="acceptTerms" type="checkbox" checked={data.mention_accepted} onChange={(e)=> setData('mention_accepted', e.target.checked)} />
@@ -478,7 +690,7 @@ const AvSalaire = ({ auth, flash }) => {
                             Étape précédente
                         </button>
                         <PrimaryButton disabled={processing}>
-                            {processing ? 'Traitement...' : currentStep === 4 ? 'Soumettre la demande' : 'Continuer'}
+                            {processing ? 'Traitement...' : currentStep === 5 ? 'Soumettre la demande' : 'Continuer'}
                         </PrimaryButton>
                     </div>
                 </form>

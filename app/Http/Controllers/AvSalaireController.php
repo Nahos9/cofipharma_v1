@@ -116,8 +116,22 @@ class AvSalaireController extends Controller
             $processor->setValue('profession', $data['profession'] ?? '');
             $processor->setValue('piece', $piece ?? '');
 
-            // Pas d'image de signature pour l'avance
-            $processor->setValue('signature', '');
+            // Image de signature pour la preview si fournie (même logique que DemandeController)
+            if (!empty($data['signature_relative_path'])) {
+                $absoluteSigPath = storage_path('app/public/' . ltrim($data['signature_relative_path'], '/'));
+                if (file_exists($absoluteSigPath)) {
+                    $processor->setImageValue('signature', [
+                        'path' => $absoluteSigPath,
+                        'width' => 200,
+                        'height' => 80,
+                        'ratio' => true,
+                    ]);
+                } else {
+                    $processor->setValue('signature', '');
+                }
+            } else {
+                $processor->setValue('signature', '');
+            }
 
             $processor->saveAs($tmpDocx);
 
@@ -189,10 +203,12 @@ class AvSalaireController extends Controller
             'fichiers.array' => 'Les fichiers doivent être sélectionnés correctement.',
             'fichiers.*.file' => 'Chaque fichier doit être un fichier valide.',
             'fichiers.*.max' => 'Chaque fichier ne peut pas dépasser 5 Mo.',
+            'signature' => 'nullable|file|mimes:png,jpg,jpeg|max:10240',
         ]);
 
         try {
             // Création de l'avance sur salaire
+            // dd($request->all());
             $avSalaire = new \App\Models\AvSalaire();
             $avSalaire->nom = $validated['nom'];
             $avSalaire->prenom = $validated['prenom'];
@@ -220,6 +236,26 @@ class AvSalaireController extends Controller
             $avSalaire->mention_accepted_at = Carbon::now();
             $avSalaire->user_validateur_level = "charge client";
             $avSalaire->save();
+
+            // Stockage de la signature (si transmise)
+            $storedSignaturePath = null;
+            if ($request->hasFile('signature')) {
+                try {
+                    $storedSignaturePath = $request->file('signature')->store('avances_salaires/signatures/' . $avSalaire->id, 'public');
+                    PieceJointAv::create([
+                        'av_salaire_id' => $avSalaire->id,
+                        'chemin_fichier' => $storedSignaturePath,
+                        'nom_fichier' => 'signature_' . $avSalaire->id . '.png',
+                        'type_mime' => 'image/png',
+                        'taille_fichier' => Storage::disk('public')->size($storedSignaturePath),
+                        'category' => 'signature',
+                        'is_signed' => true,
+                        'signed_at' => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('Signature non stockée: ' . $e->getMessage());
+                }
+            }
 
             // Gestion des fichiers joints
             if ($request->hasFile('fichiers')) {
@@ -280,6 +316,23 @@ class AvSalaireController extends Controller
                     $processor->setValue('nationalite', $request->input('nationalite', ''));
                     $processor->setValue('profession', $request->input('profession', ''));
                     $processor->setValue('piece', $piece ?? '');
+
+                    // Insertion de la signature si disponible
+                    if (!empty($storedSignaturePath)) {
+                        $absoluteSigPath = storage_path('app/public/' . ltrim($storedSignaturePath, '/'));
+                        if (file_exists($absoluteSigPath)) {
+                            $processor->setImageValue('signature', [
+                                'path' => $absoluteSigPath,
+                                'width' => 200,
+                                'height' => 80,
+                                'ratio' => true,
+                            ]);
+                        } else {
+                            $processor->setValue('signature', '');
+                        }
+                    } else {
+                        $processor->setValue('signature', '');
+                    }
 
                     $tempFile = tempnam(sys_get_temp_dir(), 'docx_');
                     $processor->saveAs($tempFile);

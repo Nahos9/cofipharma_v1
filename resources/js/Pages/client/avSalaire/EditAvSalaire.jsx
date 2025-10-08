@@ -143,38 +143,65 @@ const EditAvSalaire = ({ avSalaire }) => {
               </div>
             </div>
             <div className="mt-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-gray-700" /> Contrats
-                </h3>
-                {avSalaire.piece_joints_av && avSalaire.piece_joints_av.filter(p=>p.category==='contract').length > 0 ? (
-                  <ul className="space-y-2">
-                    {avSalaire.piece_joints_av.filter(p=>p.category==='contract').map((piece, idx) => {
-                      const url = piece.chemin_fichier.startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`;
-                      const isSigned = !!piece.is_signed;
-                      return (
-                        <li key={idx} className="flex items-center gap-3 bg-gray-50 rounded p-2">
-                          <span className="truncate flex-1">{piece.nom_fichier}</span>
-                          {isSigned ? (
-                            <span className="inline-flex items-center gap-1 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4"/> Signé</span>
-                          ) : (
-                            <span className="text-amber-600 text-sm">Non signé</span>
-                          )}
-                          <a href={url} target="_blank" rel="noopener noreferrer">
-                            <Button variant="secondary" size="sm" className="flex items-center gap-1">Visualiser</Button>
-                          </a>
-                          <a href={url} target="_blank" rel="noopener noreferrer" download>
-                            <Button variant="outline" size="sm" className="flex items-center gap-1"><Download className="w-4 h-4" /> Télécharger</Button>
-                          </a>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                ) : (
-                  <div className="text-gray-500">Aucun contrat généré</div>
+                {avSalaire.status == "debloque" && (
+                     <div>
+                     <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                       Signature
+                     </h3>
+                     {avSalaire.piece_joints_av && avSalaire.piece_joints_av.filter(p=>p.category==='signature').length > 0 ? (
+                       <div className="flex items-center gap-4 bg-gray-50 rounded p-3">
+                         {avSalaire.piece_joints_av.filter(p=>p.category==='signature').map((piece, idx) => {
+                           const url = piece.chemin_fichier.startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`;
+                           return (
+                             <div key={idx} className="flex items-center gap-3">
+                               <img src={url} alt="Signature" className="h-20 object-contain border rounded bg-white" />
+                             </div>
+                           )
+                         })}
+                       </div>
+                     ) : (
+                       <div className="text-gray-500">Aucune signature enregistrée</div>
+                     )}
+                   </div>
                 )}
-              </div>
-              <div className="pt-2 border-t">
+             {avSalaire.status == "debloque" ? (
+                 <div>
+                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                   <FileText className="w-5 h-5 text-gray-700" /> Contrats
+                 </h3>
+                 {avSalaire.piece_joints_av && avSalaire.piece_joints_av.filter(p=>p.category==='contract').length > 0 ? (
+                   <ul className="space-y-2">
+                     {avSalaire.piece_joints_av.filter(p=>p.category==='contract').map((piece, idx) => {
+                       const url = piece.chemin_fichier.startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`;
+                       const isSigned = !!piece.is_signed;
+                       return (
+                         <li key={idx} className="flex items-center gap-3 bg-gray-50 rounded p-2">
+                           <span className="truncate flex-1">{piece.nom_fichier}</span>
+                           {/* {isSigned ? (
+                             <span className="inline-flex items-center gap-1 text-green-600 text-sm"><CheckCircle2 className="w-4 h-4"/> Signé</span>
+                           ) : (
+                             <span className="text-amber-600 text-sm">Non signé</span>
+                           )} */}
+                           <a href={url} target="_blank" rel="noopener noreferrer">
+                             <Button variant="secondary" size="sm" className="flex items-center gap-1">Visualiser</Button>
+                           </a>
+                           <a href={url} target="_blank" rel="noopener noreferrer" download>
+                             <Button variant="outline" size="sm" className="flex items-center gap-1"><Download className="w-4 h-4" /> Télécharger</Button>
+                           </a>
+                         </li>
+                       )
+                     })}
+                   </ul>
+                 ) : (
+                   <div className="text-gray-500">Aucun contrat généré</div>
+                 )}
+               </div>
+             ):(
+                <div>
+                    <p className="text-gray-500">Votre contrat est en attente de signature.</p>
+                </div>
+             )}
+              {/* <div className="pt-2 border-t">
                 <h4 className="font-medium mb-2">Ajouter un contrat signé</h4>
                 <form onSubmit={(e)=>{
                   e.preventDefault();
@@ -187,7 +214,7 @@ const EditAvSalaire = ({ avSalaire }) => {
                   <input type="file" accept=".pdf,.doc,.docx" className="flex-1 text-sm" disabled={(avSalaire.piece_joints_av||[]).some(p=>p.category==='contract' && p.is_signed)} />
                   <Button type="submit" className="flex items-center gap-1" disabled={(avSalaire.piece_joints_av||[]).some(p=>p.category==='contract' && p.is_signed)}><Upload className="w-4 h-4"/> Charger</Button>
                 </form>
-              </div>
+              </div> */}
             </div>
           </CardContent>
         </Card>
