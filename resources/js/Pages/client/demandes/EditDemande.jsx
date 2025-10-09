@@ -311,9 +311,9 @@ const EditDemande = ({demande}) => {
                                 <h3 className="text-lg font-medium leading-6 text-gray-900">Autres pièces jointes</h3>
                               {demande.status == "debloque" ? (
                                   <div className="mt-5">
-                                  {demande.piece_jointes && demande.piece_jointes.filter(p => !p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`) && !(p.nom_fichier || '').startsWith('signature_')).length > 0 ? (
+                                  {demande.piece_jointes && demande.piece_jointes.filter(p => !(p.nom_fichier || '').startsWith('signature_')).length > 0 ? (
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                          {demande.piece_jointes.filter(p => !p.chemin_fichier.startsWith(`contrats_signes/${demande.id}/`) && !(p.nom_fichier || '').startsWith('signature_')).map((piece) => (
+                                          {demande.piece_jointes.filter(p => !(p.nom_fichier || '').startsWith('signature_')).map((piece) => (
                                               <div key={piece.id} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
                                                   <div className="flex-shrink-0">
                                                       {getFileIcon(piece.type_mime)}
