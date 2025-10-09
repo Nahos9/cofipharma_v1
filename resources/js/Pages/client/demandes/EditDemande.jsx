@@ -165,6 +165,14 @@ const EditDemande = ({demande}) => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
+    const buildFileUrl = (path) => {
+        if (!path) return '#'
+        if (path.startsWith('http')) return path
+        if (path.startsWith('/storage/')) return path
+        if (path.startsWith('storage/')) return `/${path}`
+        return `/storage/${path}`
+    }
+
   return (
         <ClientLayout
             header={
@@ -328,7 +336,7 @@ const EditDemande = ({demande}) => {
                                                   </div>
                                                   <div className="flex-shrink-0">
                                                       <a
-                                                          href={`/storage/${piece.chemin_fichier}`}
+                                                          href={buildFileUrl(piece.chemin_fichier)}
                                                           download={piece.nom_fichier}
                                                           className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                                                       >

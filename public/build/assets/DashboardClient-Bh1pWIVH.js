@@ -1,0 +1,1 @@
+import{j as e,a as t}from"./app-CACpDkVR.js";import{C as a}from"./ClientLayout-B1B-Q8gS.js";import"./Dropdown-Co7MeC0J.js";import"./transition-DS2mVSam.js";function n(){return e.jsxs(a,{children:[e.jsx(t,{title:"Tableau de bord"}),e.jsx("div",{className:"",children:"Bienvenue dans votre espace"})]})}export{n as default};
