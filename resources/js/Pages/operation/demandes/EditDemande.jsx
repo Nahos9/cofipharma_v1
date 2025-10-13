@@ -274,41 +274,63 @@ const EditDemande = ({demande}) => {
                             </div>
 
                             <div className="mt-8">
-                                <h3 className="text-lg font-medium leading-6 text-gray-900">Pièces jointes</h3>
+                                <h3 className="text-lg font-medium leading-6 text-gray-900">Contrat signé</h3>
                                 <div className="mt-5">
-                                    {demande.piece_jointes && demande.piece_jointes.length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                            {demande.piece_jointes.map((piece) => (
-                                                <div key={piece.id} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
-                                                    <div className="flex-shrink-0">
-                                                        {getFileIcon(piece.type_mime)}
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-medium text-gray-900 truncate">
-                                                            {piece.nom_fichier}
-                                                        </p>
-                                                        <p className="text-sm text-gray-500">
-                                                            {formatFileSize(piece.taille_fichier)}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex-shrink-0">
-                                                        <a
-                                                            href={`/storage/${piece.chemin_fichier}`}
-                                                            download={piece.nom_fichier}
-                                                            className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                                                        >
-                                                            <Download className="h-4 w-4 mr-1" />
-                                                            Télécharger
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    {demande.piece_jointes && demande.piece_jointes.filter(p => (p.chemin_fichier || '').startsWith(`contrats_signes/${demande.id}/`) || p.is_signed).length > 0 ? (
+                                        <ul className="space-y-2">
+                                            {demande.piece_jointes.filter(p => (p.chemin_fichier || '').startsWith(`contrats_signes/${demande.id}/`) || p.is_signed).map((piece) => {
+                                                const url = (piece.chemin_fichier || '').startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`
+                                                return (
+                                                    <li key={piece.id} className="flex items-center gap-3 bg-gray-50 rounded p-3">
+                                                        <span className="truncate flex-1">{piece.nom_fichier}</span>
+                                                        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Visualiser</a>
+                                                        <a href={url} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"><Download className="h-4 w-4 mr-1" /> Télécharger</a>
+                                                    </li>
+                                                )
+                                            })}
+                                        </ul>
                                     ) : (
-                                        <div className="text-center py-4">
-                                            <p className="text-gray-500">Aucune pièce jointe disponible</p>
-                                        </div>
+                                        <div className="text-gray-500">Aucun contrat signé</div>
                                     )}
+                                </div>
+
+                                <div className="mt-8">
+                                    <h3 className="text-lg font-medium leading-6 text-gray-900">Autres pièces jointes</h3>
+                                    <div className="mt-5">
+                                        {demande.piece_jointes && demande.piece_jointes.filter(p => !((p.chemin_fichier || '').startsWith(`contrats_signes/${demande.id}/`) || p.is_signed)).length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                {demande.piece_jointes.filter(p => !((p.chemin_fichier || '').startsWith(`contrats_signes/${demande.id}/`) || p.is_signed)).map((piece) => (
+                                                    <div key={piece.id} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
+                                                        <div className="flex-shrink-0">
+                                                            {getFileIcon(piece.type_mime)}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-gray-900 truncate">
+                                                                {piece.nom_fichier}
+                                                            </p>
+                                                            <p className="text-sm text-gray-500">
+                                                                {formatFileSize(piece.taille_fichier)}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex-shrink-0">
+                                                            <a
+                                                                href={(piece.chemin_fichier || '').startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`}
+                                                                download={piece.nom_fichier}
+                                                                className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                                                            >
+                                                                <Download className="h-4 w-4 mr-1" />
+                                                                Télécharger
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-4">
+                                                <p className="text-gray-500">Aucune pièce jointe disponible</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
