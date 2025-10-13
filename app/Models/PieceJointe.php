@@ -14,7 +14,15 @@ class PieceJointe extends Model
         'nom_fichier',
         'chemin_fichier',
         'type_mime',
-        'taille_fichier'
+        'taille_fichier',
+        'category',
+        'is_signed',
+        'signed_at',
+    ];
+
+    protected $casts = [
+        'is_signed' => 'boolean',
+        'signed_at' => 'datetime',
     ];
 
     public function demande()

@@ -21,6 +21,20 @@ use PhpOffice\PhpWord\IOFactory;
 
 class DemandeController extends Controller
 {
+    private function deriveCategory(string $originalName = null, string $mime = null, string $path = null): string
+    {
+        $name = strtolower($originalName ?? '');
+        $mime = strtolower($mime ?? '');
+        $path = strtolower($path ?? '');
+
+        if (str_starts_with($name, 'signature_') || str_contains($name, 'signature')) {
+            return 'signature';
+        }
+        if (str_contains($name, 'contrat') || str_contains($name, 'contract') || $mime === 'application/pdf' || str_contains($path, 'contrats')) {
+            return 'contract';
+        }
+        return 'other';
+    }
     public function index()
     {
         return Inertia::render('Demandes');
@@ -204,7 +218,8 @@ class DemandeController extends Controller
                     'nom_fichier' => $file->getClientOriginalName(),
                     'chemin_fichier' => $path,
                     'type_mime' => $file->getMimeType(),
-                    'taille_fichier' => $file->getSize()
+                    'taille_fichier' => $file->getSize(),
+                    'category' => $this->deriveCategory($file->getClientOriginalName(), $file->getMimeType(), $path),
                 ]);
             }
         }
@@ -218,7 +233,10 @@ class DemandeController extends Controller
                 'nom_fichier' => 'signature_' . $demande->id . '.' . $signature->getClientOriginalExtension(),
                 'chemin_fichier' => $sigPath,
                 'type_mime' => $signature->getMimeType(),
-                'taille_fichier' => $signature->getSize()
+                'taille_fichier' => $signature->getSize(),
+                'category' => 'signature',
+                'is_signed' => true,
+                'signed_at' => now(),
             ]);
         }
 
@@ -293,6 +311,7 @@ class DemandeController extends Controller
                     'chemin_fichier' => $storedPath,
                     'type_mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                     'taille_fichier' => Storage::disk('public')->size($storedPath),
+                    'category' => 'contract',
                 ]);
             }
         } catch (\Throwable $e) {
@@ -423,7 +442,10 @@ class DemandeController extends Controller
             'nom_fichier' => 'contrat_signe_' . $demande->id . '.' . $file->getClientOriginalExtension(),
             'chemin_fichier' => $storedPath,
             'type_mime' => $file->getMimeType(),
-            'taille_fichier' => $file->getSize()
+            'taille_fichier' => $file->getSize(),
+            'category' => 'contract',
+            'is_signed' => true,
+            'signed_at' => now(),
         ]);
 
         return redirect()->back()->with('success', 'Contrat signé téléversé avec succès');

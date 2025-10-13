@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('nom_fichier');
             $table->string('chemin_fichier');
             $table->string('type_mime');
+            $table->string('category')->nullable();
+            $table->boolean('is_signed')->default(false);
+            $table->timestamp('signed_at')->nullable();
             $table->integer('taille_fichier');
             $table->timestamps();
         });
