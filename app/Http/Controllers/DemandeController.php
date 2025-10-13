@@ -28,25 +28,50 @@ class DemandeController extends Controller
 
     public function edit(Demande $demande)
     {
+        // Charger les relations une seule fois
+        $demande = $demande->load(['user', 'pieceJointes']);
+
+        // Dériver une catégorie pour chaque pièce jointe (signature, contract, other)
+        if ($demande->relationLoaded('pieceJointes') && $demande->pieceJointes) {
+            $demande->pieceJointes->transform(function ($piece) {
+                $name = strtolower($piece->nom_fichier ?? '');
+                $mime = strtolower($piece->type_mime ?? '');
+
+                $isSignature = (strpos($name, 'signature_') === 0) || (strpos($name, 'signature') !== false);
+                $isContract = (strpos($name, 'contrat') !== false)
+                    || (strpos($name, 'contract') !== false)
+                    || ($mime === 'application/pdf');
+
+                if ($isSignature) {
+                    $piece->setAttribute('category', 'signature');
+                } elseif ($isContract) {
+                    $piece->setAttribute('category', 'contract');
+                } else {
+                    $piece->setAttribute('category', 'other');
+                }
+                return $piece;
+            });
+        }
+
         if(Auth::user()->role == "responsable_ritel" || Auth::user()->role == "chef_agence"){
             return Inertia::render('responsable_ritel/demandes/EditDemande', [
-                'demande' => $demande->load(['user', 'pieceJointes'])
+                'demande' => $demande
             ]);
         }elseif(Auth::user()->role == "visiteur"){
             return Inertia::render('visiteur/demandes/EditDemande', [
-                'demande' => $demande->load(['user', 'pieceJointes'])
+                'demande' => $demande
             ]);
         }elseif(Auth::user()->role == "charge client"){
             return Inertia::render('caissiere/demandes/EditDemande', [
-                'demande' => $demande->load(['user', 'pieceJointes'])
+                'demande' => $demande
             ]);
         }elseif(Auth::user()->role == "client"){
             return Inertia::render('client/demandes/EditDemande', [
-                'demande' => $demande->load(['user', 'pieceJointes'])
+                'demande' => $demande
             ]);
         }else{
             return Inertia::render('operation/demandes/EditDemande', [
-                'demande' => $demande->load(['user', 'pieceJointes'])
+                'demande' => $demande
             ]);
         }
     }
