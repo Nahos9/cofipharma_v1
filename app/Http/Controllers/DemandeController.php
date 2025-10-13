@@ -248,7 +248,15 @@ class DemandeController extends Controller
 
         // Génération du contrat DOCX depuis un modèle si disponible
         try {
-            $templatePath = resource_path('contracts/contrat.docx');
+            // Support casse du nom de fichier sur Linux (nginx)
+            $templateCandidates = [
+                resource_path('contracts/Contrat.docx'),
+                resource_path('contracts/contrat.docx'),
+            ];
+            $templatePath = null;
+            foreach ($templateCandidates as $candidate) {
+                if (file_exists($candidate)) { $templatePath = $candidate; break; }
+            }
             $piece_identites = ["cni" => "Carte nationale d'identité", "passport" => "Passport", "permis de conduire" => "Permis de conduire", "cart_sej" => "Carte de séjour"];
             $piece = "";
             if($demande->piece_identite == "cni" || $demande->piece_identite == "cart_sej"){
@@ -257,7 +265,7 @@ class DemandeController extends Controller
                 $piece = "du";
             }
 
-            if (file_exists($templatePath)) {
+            if ($templatePath && file_exists($templatePath)) {
                 $template = new TemplateProcessor($templatePath);
                 $template->setValue('first_name', $demande->first_name ?? '');
                 $template->setValue('last_name', $demande->last_name ?? '');
@@ -319,6 +327,8 @@ class DemandeController extends Controller
                     'taille_fichier' => Storage::disk('public')->size($storedPath),
                     'category' => 'contract',
                 ]);
+            } else {
+                Log::warning('Modèle de contrat introuvable pour la demande ID: '.$demande->id);
             }
         } catch (\Throwable $e) {
             Log::error('Erreur génération contrat DOCX: ' . $e->getMessage());
