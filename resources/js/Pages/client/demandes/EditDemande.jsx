@@ -357,9 +357,9 @@ const EditDemande = ({demande}) => {
                                     {/* Contrats */}
                                     <div>
                                       <h4 className="text-md font-semibold text-gray-800 mb-2">Contrats</h4>
-                                      {pieceJointes && (pieceJointes.filter(p => p.category === 'contract').length > 0) ? (
+                                      {pieceJointes && (pieceJointes.filter(p => (p.category === 'contract') || ((p.chemin_fichier || '').toLowerCase().includes('contrats'))).length > 0) ? (
                                         <ul className="space-y-2">
-                                          {pieceJointes.filter(p => p.category === 'contract').map((piece) => {
+                                          {pieceJointes.filter(p => (p.category === 'contract') || ((p.chemin_fichier || '').toLowerCase().includes('contrats'))).map((piece) => {
                                             const url = (piece.chemin_fichier || '').startsWith('http') ? piece.chemin_fichier : `/storage/${piece.chemin_fichier}`
                                             return (
                                               <li key={piece.id} className="flex items-center gap-3 bg-gray-50 rounded p-3">
