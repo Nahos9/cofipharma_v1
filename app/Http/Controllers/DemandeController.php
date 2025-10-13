@@ -30,7 +30,13 @@ class DemandeController extends Controller
         if (str_starts_with($name, 'signature_') || str_contains($name, 'signature')) {
             return 'signature';
         }
-        if (str_contains($name, 'contrat') || str_contains($name, 'contract') || $mime === 'application/pdf' || str_contains($path, 'contrats')) {
+        if (
+            str_contains($name, 'contrat') || str_contains($name, 'contract')
+            || $mime === 'application/pdf'
+            || str_contains($mime, 'application/msword')
+            || str_contains($mime, 'officedocument.wordprocessingml.document')
+            || str_contains($path, 'contrats') || str_contains($path, 'contrat')
+        ) {
             return 'contract';
         }
         return 'other';
